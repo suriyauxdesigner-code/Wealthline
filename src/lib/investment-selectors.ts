@@ -27,6 +27,18 @@ export const ASSET_GROUP: Record<AssetClass, "Equity" | "Debt" | "Gold" | "Crypt
   crypto: "Crypto",
 };
 
+// FD / EPF / PPF / Bonds aren't bought and sold in units with a fluctuating
+// price — they're tracked as a lump invested amount that grows to a current
+// value. Internally they still use quantity/averageCost/currentPrice
+// (quantity pinned to 1) so every other calculation (invested value, current
+// value, allocation, returns) keeps working unchanged; only the Add/Edit
+// form and the holdings table presentation branch on this.
+const VALUE_BASED_ASSET_CLASSES: AssetClass[] = ["fd", "epf", "ppf", "bonds"];
+
+export function isUnitBasedAssetClass(assetClass: AssetClass): boolean {
+  return !VALUE_BASED_ASSET_CLASSES.includes(assetClass);
+}
+
 export interface HoldingRow extends Investment {
   invested: number;
   currentValue: number;

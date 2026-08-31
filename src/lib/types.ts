@@ -108,6 +108,18 @@ export interface Investment {
   currentPrice: number;
 }
 
+export type InvestmentTransactionType = "buy" | "sell" | "dividend";
+
+export interface InvestmentTransaction {
+  id: string;
+  investmentId: string;
+  type: InvestmentTransactionType;
+  quantity: number;
+  price: number;
+  amount: number;
+  date: string; // ISO date
+}
+
 export interface PortfolioHistoryPoint {
   date: string; // ISO date, monthly
   invested: number;

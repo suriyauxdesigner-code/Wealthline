@@ -19,7 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ASSET_CLASS_LABEL } from "@/lib/investment-selectors";
+import { ASSET_CLASS_LABEL, isUnitBasedAssetClass } from "@/lib/investment-selectors";
 import { useAppStore } from "@/lib/store";
 import type { AssetClass, Investment } from "@/lib/types";
 
@@ -54,6 +54,17 @@ export function AddInvestmentDialog({
   const [quantity, setQuantity] = React.useState(editInvestment ? String(editInvestment.quantity) : "");
   const [averageCost, setAverageCost] = React.useState(editInvestment ? String(editInvestment.averageCost) : "");
   const [currentPrice, setCurrentPrice] = React.useState(editInvestment ? String(editInvestment.currentPrice) : "");
+  // Value-based holdings (FD/EPF/PPF/Bonds) store quantity=1 and reuse
+  // averageCost/currentPrice as investedAmount/currentValue — these two
+  // fields drive that simplified form instead.
+  const [investedAmount, setInvestedAmount] = React.useState(
+    editInvestment ? String(editInvestment.quantity * editInvestment.averageCost) : ""
+  );
+  const [currentValue, setCurrentValue] = React.useState(
+    editInvestment ? String(editInvestment.quantity * editInvestment.currentPrice) : ""
+  );
+
+  const unitBased = isUnitBasedAssetClass(assetClass);
 
   // Accounts load asynchronously after mount, so default to the first one
   // without a separate effect just to sync that.
@@ -67,23 +78,41 @@ export function AddInvestmentDialog({
     setQuantity("");
     setAverageCost("");
     setCurrentPrice("");
+    setInvestedAmount("");
+    setCurrentValue("");
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const numericQuantity = Number(quantity);
-    const numericAverageCost = Number(averageCost);
-    const numericCurrentPrice = Number(currentPrice);
-    if (!name || !selectedAccountId || !numericQuantity || !numericAverageCost || !numericCurrentPrice) return;
+    if (!name || !selectedAccountId) return;
 
-    const payload = {
-      name,
-      assetClass,
-      accountId: selectedAccountId,
-      quantity: numericQuantity,
-      averageCost: numericAverageCost,
-      currentPrice: numericCurrentPrice,
-    };
+    let payload: Omit<Investment, "id">;
+    if (unitBased) {
+      const numericQuantity = Number(quantity);
+      const numericAverageCost = Number(averageCost);
+      const numericCurrentPrice = Number(currentPrice);
+      if (!numericQuantity || !numericAverageCost || !numericCurrentPrice) return;
+      payload = {
+        name,
+        assetClass,
+        accountId: selectedAccountId,
+        quantity: numericQuantity,
+        averageCost: numericAverageCost,
+        currentPrice: numericCurrentPrice,
+      };
+    } else {
+      const numericInvested = Number(investedAmount);
+      const numericCurrent = Number(currentValue);
+      if (!numericInvested || !numericCurrent) return;
+      payload = {
+        name,
+        assetClass,
+        accountId: selectedAccountId,
+        quantity: 1,
+        averageCost: numericInvested,
+        currentPrice: numericCurrent,
+      };
+    }
 
     if (isEdit) {
       await updateInvestment(editInvestment!.id, payload);
@@ -174,38 +203,65 @@ export function AddInvestmentDialog({
               </Select>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="investment-quantity">Quantity</Label>
-              <Input
-                id="investment-quantity"
-                inputMode="decimal"
-                placeholder="0"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value.replace(/[^0-9.]/g, ""))}
-              />
+
+          {unitBased ? (
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="investment-quantity">Quantity</Label>
+                <Input
+                  id="investment-quantity"
+                  inputMode="decimal"
+                  placeholder="0"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value.replace(/[^0-9.]/g, ""))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="investment-avg-cost">Avg. cost</Label>
+                <Input
+                  id="investment-avg-cost"
+                  inputMode="decimal"
+                  placeholder="0"
+                  value={averageCost}
+                  onChange={(e) => setAverageCost(e.target.value.replace(/[^0-9.]/g, ""))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="investment-ltp">LTP</Label>
+                <Input
+                  id="investment-ltp"
+                  inputMode="decimal"
+                  placeholder="0"
+                  value={currentPrice}
+                  onChange={(e) => setCurrentPrice(e.target.value.replace(/[^0-9.]/g, ""))}
+                />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="investment-avg-cost">Avg. cost</Label>
-              <Input
-                id="investment-avg-cost"
-                inputMode="decimal"
-                placeholder="0"
-                value={averageCost}
-                onChange={(e) => setAverageCost(e.target.value.replace(/[^0-9.]/g, ""))}
-              />
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="investment-invested">Invested amount</Label>
+                <Input
+                  id="investment-invested"
+                  inputMode="decimal"
+                  placeholder="0"
+                  value={investedAmount}
+                  onChange={(e) => setInvestedAmount(e.target.value.replace(/[^0-9.]/g, ""))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="investment-current-value">Current value</Label>
+                <Input
+                  id="investment-current-value"
+                  inputMode="decimal"
+                  placeholder="0"
+                  value={currentValue}
+                  onChange={(e) => setCurrentValue(e.target.value.replace(/[^0-9.]/g, ""))}
+                />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="investment-ltp">LTP</Label>
-              <Input
-                id="investment-ltp"
-                inputMode="decimal"
-                placeholder="0"
-                value={currentPrice}
-                onChange={(e) => setCurrentPrice(e.target.value.replace(/[^0-9.]/g, ""))}
-              />
-            </div>
-          </div>
+          )}
+
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel

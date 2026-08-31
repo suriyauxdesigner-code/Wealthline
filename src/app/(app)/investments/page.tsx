@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { LineChart, MoreHorizontal, Pencil, TrendingUp, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -100,20 +101,20 @@ export default function InvestmentsPage() {
           {/* Mobile: compact card list — an 8-column table doesn't fit small screens */}
           <div className="divide-y divide-border/70 md:hidden">
             {holdings.map((h) => (
-              <div key={h.id} className="flex items-center gap-3 px-4 py-3">
-                <div className="min-w-0 flex-1">
+              <div key={h.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50">
+                <Link href={`/investments/${h.id}`} className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{h.name}</p>
                   <p className="truncate text-xs text-muted-foreground">
                     {ASSET_CLASS_LABEL[h.assetClass]} · {h.quantity < 1 ? h.quantity.toFixed(4) : h.quantity.toLocaleString("en-IN")} units
                   </p>
-                </div>
-                <div className="shrink-0 text-right">
+                </Link>
+                <Link href={`/investments/${h.id}`} className="shrink-0 text-right">
                   <p className="text-sm font-medium tabular-nums">{formatINR(h.currentValue, { compact: true })}</p>
                   <p className={`text-xs tabular-nums ${h.gain >= 0 ? "text-positive" : "text-negative"}`}>
                     {h.gain >= 0 ? "+" : ""}
                     {formatINR(h.gain, { compact: true })} ({formatPercent(h.returnPct, 1)})
                   </p>
-                </div>
+                </Link>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="size-7 shrink-0">
@@ -156,7 +157,11 @@ export default function InvestmentsPage() {
             <TableBody>
               {holdings.map((h) => (
                 <TableRow key={h.id}>
-                  <TableCell className="pl-4 font-medium">{h.name}</TableCell>
+                  <TableCell className="pl-4 font-medium">
+                    <Link href={`/investments/${h.id}`} className="hover:underline">
+                      {h.name}
+                    </Link>
+                  </TableCell>
                   <TableCell className="text-muted-foreground">{ASSET_CLASS_LABEL[h.assetClass]}</TableCell>
                   <TableCell className="text-right tabular-nums text-muted-foreground">
                     {h.quantity < 1 ? h.quantity.toFixed(4) : h.quantity.toLocaleString("en-IN")}

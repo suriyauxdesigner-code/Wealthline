@@ -18,6 +18,7 @@ import * as categoriesRepo from "./repositories/categories";
 import * as fireProfileRepo from "./repositories/fire-profile";
 import * as goalsRepo from "./repositories/goals";
 import * as investmentsRepo from "./repositories/investments";
+import * as investmentTransactionsRepo from "./repositories/investment-transactions";
 import * as liabilitiesRepo from "./repositories/liabilities";
 import * as otherAssetsRepo from "./repositories/other-assets";
 import * as transactionsRepo from "./repositories/transactions";
@@ -28,6 +29,7 @@ import type {
   FIREProfile,
   Goal,
   Investment,
+  InvestmentTransaction,
   Liability,
   OtherAsset,
   RecurringTransaction,
@@ -90,6 +92,11 @@ interface AppState {
   addInvestment: (i: Omit<Investment, "id">) => Promise<void>;
   updateInvestment: (id: string, patch: Partial<Investment>) => Promise<void>;
   deleteInvestment: (id: string) => Promise<void>;
+  logInvestmentTransaction: (
+    investmentId: string,
+    input: Omit<InvestmentTransaction, "id" | "investmentId" | "amount">
+  ) => Promise<void>;
+  deleteInvestmentTransactionEntry: (investmentId: string, transactionId: string) => Promise<void>;
 
   addLiability: (l: Omit<Liability, "id">) => Promise<void>;
   updateLiability: (id: string, patch: Partial<Liability>) => Promise<void>;
@@ -166,6 +173,42 @@ export const useAppStore = create<AppState>((set, get) => {
     // A debt-linked transaction is always a payment: applying it (sign=1)
     // reduces outstanding, reversing it (sign=-1) puts it back.
     if (t.liabilityId) await adjustLiabilityOutstanding(t.liabilityId, -t.amount * sign);
+  }
+
+  // A holding's quantity/average cost must reflect its FULL buy/sell
+  // history, not just the latest entry — recomputed from scratch after every
+  // log or delete so the numbers stay correct regardless of edit order.
+  // Dividends don't affect quantity or cost basis. Selling reduces the cost
+  // basis proportionally so the average cost of the remaining units is
+  // unchanged.
+  async function recomputeHoldingFromTransactions(investmentId: string, latestPrice?: number) {
+    const investment = get().investments.find((i) => i.id === investmentId);
+    if (!investment) return;
+    const transactions = await investmentTransactionsRepo.listInvestmentTransactions(investmentId);
+    const sorted = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    let quantity = 0;
+    let totalCost = 0;
+    for (const tx of sorted) {
+      if (tx.type === "buy") {
+        quantity += tx.quantity;
+        totalCost += tx.quantity * tx.price;
+      } else if (tx.type === "sell") {
+        const avgCostBefore = quantity > 0 ? totalCost / quantity : 0;
+        quantity = Math.max(0, quantity - tx.quantity);
+        totalCost = Math.max(0, totalCost - tx.quantity * avgCostBefore);
+      }
+    }
+
+    const averageCost = quantity > 0 ? totalCost / quantity : investment.averageCost;
+    const currentPrice = latestPrice ?? sorted[sorted.length - 1]?.price ?? investment.currentPrice;
+
+    try {
+      const updated = await investmentsRepo.updateInvestment(investmentId, { quantity, averageCost, currentPrice });
+      set((state) => ({ investments: state.investments.map((i) => (i.id === investmentId ? updated : i)) }));
+    } catch (err) {
+      toast.error(errorMessage(err, "Failed to update holding"));
+    }
   }
 
   return {
@@ -404,6 +447,24 @@ export const useAppStore = create<AppState>((set, get) => {
       set((state) => ({ investments: state.investments.filter((i) => i.id !== id) }));
     } catch (err) {
       toast.error(errorMessage(err, "Failed to delete investment"));
+    }
+  },
+
+  logInvestmentTransaction: async (investmentId, input) => {
+    try {
+      await investmentTransactionsRepo.createInvestmentTransaction({ ...input, investmentId });
+      await recomputeHoldingFromTransactions(investmentId, input.price);
+    } catch (err) {
+      toast.error(errorMessage(err, "Failed to log transaction"));
+    }
+  },
+
+  deleteInvestmentTransactionEntry: async (investmentId, transactionId) => {
+    try {
+      await investmentTransactionsRepo.deleteInvestmentTransaction(transactionId);
+      await recomputeHoldingFromTransactions(investmentId);
+    } catch (err) {
+      toast.error(errorMessage(err, "Failed to delete transaction"));
     }
   },
 
