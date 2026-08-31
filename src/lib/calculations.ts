@@ -334,8 +334,11 @@ export function calcRequiredMonthlyContribution(
 
 // ---------- Formatting ----------
 
-export function formatINR(value: number, opts: { compact?: boolean; showSign?: boolean } = {}): string {
-  const { compact = false, showSign = false } = opts;
+export function formatINR(
+  value: number,
+  opts: { compact?: boolean; showSign?: boolean; decimals?: number } = {}
+): string {
+  const { compact = false, showSign = false, decimals = 0 } = opts;
   const sign = showSign && value > 0 ? "+" : "";
 
   if (compact) {
@@ -348,7 +351,7 @@ export function formatINR(value: number, opts: { compact?: boolean; showSign?: b
   const formatted = new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
-    maximumFractionDigits: 0,
+    maximumFractionDigits: decimals,
   }).format(Math.abs(value));
 
   return `${sign}${value < 0 ? "-" : ""}${formatted}`;

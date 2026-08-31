@@ -166,8 +166,8 @@ export default function InvestmentsPage() {
                   <TableCell className="text-right tabular-nums text-muted-foreground">
                     {h.quantity < 1 ? h.quantity.toFixed(4) : h.quantity.toLocaleString("en-IN")}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">{formatINR(h.averageCost)}</TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">{formatINR(h.currentPrice)}</TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">{formatINR(h.averageCost, { decimals: 4 })}</TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">{formatINR(h.currentPrice, { decimals: 4 })}</TableCell>
                   <TableCell className="text-right font-medium tabular-nums">{formatINR(h.currentValue, { compact: true })}</TableCell>
                   <TableCell className={`text-right tabular-nums ${h.gain >= 0 ? "text-positive" : "text-negative"}`}>
                     {h.gain >= 0 ? "+" : ""}

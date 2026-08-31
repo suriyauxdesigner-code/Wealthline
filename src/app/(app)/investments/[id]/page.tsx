@@ -166,8 +166,8 @@ export default function InvestmentDetailPage({ params }: { params: Promise<{ id:
       {unitBased && (
         <Card className="py-5">
           <CardContent className="grid grid-cols-2 gap-6 px-5 sm:grid-cols-2 sm:px-6">
-            <MetricCard label="Avg. cost / NAV" value={formatINR(investment.averageCost)} />
-            <MetricCard label="Current price / NAV" value={formatINR(investment.currentPrice)} />
+            <MetricCard label="Avg. cost / NAV" value={formatINR(investment.averageCost, { decimals: 4 })} />
+            <MetricCard label="Current price / NAV" value={formatINR(investment.currentPrice, { decimals: 4 })} />
           </CardContent>
         </Card>
       )}
@@ -220,9 +220,11 @@ export default function InvestmentDetailPage({ params }: { params: Promise<{ id:
                         {tx.type === "dividend" ? "—" : tx.quantity.toLocaleString("en-IN")}
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-muted-foreground">
-                        {tx.type === "dividend" ? "—" : formatINR(tx.price)}
+                        {tx.type === "dividend" ? "—" : formatINR(tx.price, { decimals: 4 })}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums font-medium">{formatINR(tx.amount)}</TableCell>
+                      <TableCell className="text-right tabular-nums font-medium">
+                        {formatINR(tx.amount, { decimals: 2 })}
+                      </TableCell>
                       <TableCell>
                         <Button
                           variant="ghost"

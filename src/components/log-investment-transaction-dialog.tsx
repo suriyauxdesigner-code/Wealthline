@@ -130,7 +130,7 @@ export function LogInvestmentTransactionDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           {openingBalance && (
             <p className="rounded-md border border-border/70 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-              We found {openingBalance.quantity.toLocaleString("en-IN")} units at {formatINR(openingBalance.price)} avg.
+              We found {openingBalance.quantity.toLocaleString("en-IN")} units at {formatINR(openingBalance.price, { decimals: 4 })} avg.
               cost with no logged history — pre-filled below as your opening Buy.
             </p>
           )}
@@ -195,7 +195,7 @@ export function LogInvestmentTransactionDialog({
 
           {!isDividend && value > 0 && (
             <p className="text-xs text-muted-foreground">
-              Total {type === "buy" ? "cost" : "proceeds"}: <span className="font-medium text-foreground">{formatINR(value)}</span>
+              Total {type === "buy" ? "cost" : "proceeds"}: <span className="font-medium text-foreground">{formatINR(value, { decimals: 2 })}</span>
             </p>
           )}
 

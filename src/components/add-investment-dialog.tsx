@@ -246,7 +246,7 @@ export function AddInvestmentDialog({
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Avg. cost</p>
-                    <p className="font-medium tabular-nums">{formatINR(editInvestment!.averageCost)}</p>
+                    <p className="font-medium tabular-nums">{formatINR(editInvestment!.averageCost, { decimals: 4 })}</p>
                   </div>
                 </div>
                 <div className="space-y-1.5">
