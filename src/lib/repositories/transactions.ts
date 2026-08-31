@@ -6,6 +6,7 @@ interface TransactionRow {
   account_id: string;
   to_account_id: string | null;
   liability_id: string | null;
+  investment_id: string | null;
   type: Transaction["type"];
   amount: number;
   category_id: string | null;
@@ -18,7 +19,7 @@ interface TransactionRow {
 }
 
 const COLUMNS =
-  "id, account_id, to_account_id, liability_id, type, amount, category_id, merchant, date, notes, tags, recurring_id, attachment";
+  "id, account_id, to_account_id, liability_id, investment_id, type, amount, category_id, merchant, date, notes, tags, recurring_id, attachment";
 
 function mapTransaction(row: TransactionRow): Transaction {
   return {
@@ -30,6 +31,7 @@ function mapTransaction(row: TransactionRow): Transaction {
     accountId: row.account_id,
     toAccountId: row.to_account_id ?? undefined,
     liabilityId: row.liability_id ?? undefined,
+    investmentId: row.investment_id ?? undefined,
     date: row.date,
     notes: row.notes ?? undefined,
     tags: row.tags ?? undefined,
@@ -53,6 +55,7 @@ export async function createTransaction(input: Omit<Transaction, "id">): Promise
       account_id: input.accountId,
       to_account_id: input.toAccountId ?? null,
       liability_id: input.liabilityId ?? null,
+      investment_id: input.investmentId ?? null,
       type: input.type,
       amount: input.amount,
       category_id: input.categoryId || null,
@@ -75,6 +78,7 @@ export async function updateTransaction(id: string, patch: Partial<Transaction>)
   if (patch.accountId !== undefined) update.account_id = patch.accountId;
   if (patch.toAccountId !== undefined) update.to_account_id = patch.toAccountId ?? null;
   if (patch.liabilityId !== undefined) update.liability_id = patch.liabilityId ?? null;
+  if (patch.investmentId !== undefined) update.investment_id = patch.investmentId ?? null;
   if (patch.type !== undefined) update.type = patch.type;
   if (patch.amount !== undefined) update.amount = patch.amount;
   if (patch.categoryId !== undefined) update.category_id = patch.categoryId || null;

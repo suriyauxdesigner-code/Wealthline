@@ -22,6 +22,7 @@ import * as investmentTransactionsRepo from "./repositories/investment-transacti
 import * as liabilitiesRepo from "./repositories/liabilities";
 import * as otherAssetsRepo from "./repositories/other-assets";
 import * as transactionsRepo from "./repositories/transactions";
+import { isUnitBasedAssetClass } from "./investment-selectors";
 import type {
   Account,
   Budget,
@@ -72,7 +73,7 @@ interface AppState {
   init: () => Promise<void>;
   refresh: () => Promise<void>;
 
-  addTransaction: (t: Omit<Transaction, "id">) => Promise<void>;
+  addTransaction: (t: Omit<Transaction, "id">) => Promise<Transaction | undefined>;
   updateTransaction: (id: string, patch: Partial<Transaction>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   deleteTransactions: (ids: string[]) => Promise<void>;
@@ -97,6 +98,20 @@ interface AppState {
     input: Omit<InvestmentTransaction, "id" | "investmentId" | "amount">
   ) => Promise<void>;
   deleteInvestmentTransactionEntry: (investmentId: string, transactionId: string) => Promise<void>;
+  // Used by Add Transaction's Investment tab to tie a logged Buy/Sell to a
+  // specific unit-based holding, keeping it in the same replay-based ledger
+  // the holding's own detail page uses.
+  linkInvestmentTransaction: (
+    transactionId: string,
+    investmentId: string,
+    details: { type: InvestmentTransaction["type"]; quantity: number; price: number; date: string }
+  ) => Promise<void>;
+  updateLinkedInvestmentTransaction: (
+    ledgerId: string,
+    investmentId: string,
+    details: { type: InvestmentTransaction["type"]; quantity: number; price: number; date: string }
+  ) => Promise<void>;
+  unlinkInvestmentTransaction: (ledgerId: string, investmentId: string) => Promise<void>;
 
   addLiability: (l: Omit<Liability, "id">) => Promise<void>;
   updateLiability: (id: string, patch: Partial<Liability>) => Promise<void>;
@@ -128,6 +143,26 @@ export const useAppStore = create<AppState>((set, get) => {
       set((state) => ({ liabilities: state.liabilities.map((l) => (l.id === liabilityId ? updated : l)) }));
     } catch (err) {
       toast.error(errorMessage(err, "Failed to update debt balance"));
+    }
+  }
+
+  // A transaction linked to a value-based holding (FD/EPF/PPF/Bonds) is
+  // always a contribution — its amount adds straight to that holding's
+  // invested amount (stored in averageCost, since quantity is pinned to 1
+  // for these). This is a simple running total, unlike unit-based holdings'
+  // weighted average cost, so it can be reversed with a plain delta exactly
+  // like adjustLiabilityOutstanding above — no replay needed.
+  async function adjustInvestmentValue(investmentId: string | undefined, delta: number) {
+    if (!investmentId || delta === 0) return;
+    const investment = get().investments.find((i) => i.id === investmentId);
+    if (!investment || isUnitBasedAssetClass(investment.assetClass)) return;
+    try {
+      const updated = await investmentsRepo.updateInvestment(investmentId, {
+        averageCost: Math.max(0, investment.averageCost + delta),
+      });
+      set((state) => ({ investments: state.investments.map((i) => (i.id === investmentId ? updated : i)) }));
+    } catch (err) {
+      toast.error(errorMessage(err, "Failed to update investment"));
     }
   }
 
@@ -164,7 +199,7 @@ export const useAppStore = create<AppState>((set, get) => {
   // sign=1 applies a transaction's effects (on create, or the new side of an
   // edit); sign=-1 reverses them (on delete, or the old side of an edit).
   async function applyTransactionEffects(
-    t: Pick<Transaction, "type" | "amount" | "accountId" | "toAccountId" | "liabilityId">,
+    t: Pick<Transaction, "type" | "amount" | "accountId" | "toAccountId" | "liabilityId" | "investmentId">,
     sign: 1 | -1
   ) {
     for (const d of accountDeltasForTransaction(t)) {
@@ -173,6 +208,11 @@ export const useAppStore = create<AppState>((set, get) => {
     // A debt-linked transaction is always a payment: applying it (sign=1)
     // reduces outstanding, reversing it (sign=-1) puts it back.
     if (t.liabilityId) await adjustLiabilityOutstanding(t.liabilityId, -t.amount * sign);
+    // A value-based-holding-linked transaction is always a contribution:
+    // applying it (sign=1) adds to invested amount, reversing it (sign=-1)
+    // subtracts it back. Unit-based holdings are handled separately via the
+    // investment_transactions ledger (see linkInvestmentTransaction et al.).
+    await adjustInvestmentValue(t.investmentId, t.amount * sign);
   }
 
   // A holding's quantity/average cost must reflect its FULL buy/sell
@@ -209,6 +249,13 @@ export const useAppStore = create<AppState>((set, get) => {
     } catch (err) {
       toast.error(errorMessage(err, "Failed to update holding"));
     }
+  }
+
+  async function recomputeUnitBasedHoldingIfLinked(investmentId: string | undefined) {
+    if (!investmentId) return;
+    const investment = get().investments.find((i) => i.id === investmentId);
+    if (!investment || !isUnitBasedAssetClass(investment.assetClass)) return;
+    await recomputeHoldingFromTransactions(investmentId);
   }
 
   return {
@@ -301,8 +348,10 @@ export const useAppStore = create<AppState>((set, get) => {
         ),
       }));
       await applyTransactionEffects(created, 1);
+      return created;
     } catch (err) {
       toast.error(errorMessage(err, "Failed to add transaction"));
+      return undefined;
     }
   },
 
@@ -325,6 +374,9 @@ export const useAppStore = create<AppState>((set, get) => {
       const deleted = await transactionsRepo.deleteTransaction(id);
       set((state) => ({ transactions: state.transactions.filter((t) => t.id !== id) }));
       await applyTransactionEffects(deleted, -1);
+      // The DB already cascade-deleted any linked investment_transactions
+      // row (unit-based holdings) — recompute so local state reflects that.
+      await recomputeUnitBasedHoldingIfLinked(deleted.investmentId);
     } catch (err) {
       toast.error(errorMessage(err, "Failed to delete transaction"));
     }
@@ -336,6 +388,7 @@ export const useAppStore = create<AppState>((set, get) => {
       set((state) => ({ transactions: state.transactions.filter((t) => !ids.includes(t.id)) }));
       for (const t of deleted) {
         await applyTransactionEffects(t, -1);
+        await recomputeUnitBasedHoldingIfLinked(t.investmentId);
       }
     } catch (err) {
       toast.error(errorMessage(err, "Failed to delete transactions"));
@@ -467,6 +520,37 @@ export const useAppStore = create<AppState>((set, get) => {
       await recomputeHoldingFromTransactions(investmentId);
     } catch (err) {
       toast.error(errorMessage(err, "Failed to delete transaction"));
+    }
+  },
+
+  linkInvestmentTransaction: async (transactionId, investmentId, details) => {
+    try {
+      await investmentTransactionsRepo.createLinkedInvestmentTransaction({
+        ...details,
+        investmentId,
+        linkedTransactionId: transactionId,
+      });
+      await recomputeHoldingFromTransactions(investmentId, details.price);
+    } catch (err) {
+      toast.error(errorMessage(err, "Failed to log investment transaction"));
+    }
+  },
+
+  updateLinkedInvestmentTransaction: async (ledgerId, investmentId, details) => {
+    try {
+      await investmentTransactionsRepo.updateInvestmentTransaction(ledgerId, details);
+      await recomputeHoldingFromTransactions(investmentId, details.price);
+    } catch (err) {
+      toast.error(errorMessage(err, "Failed to update investment transaction"));
+    }
+  },
+
+  unlinkInvestmentTransaction: async (ledgerId, investmentId) => {
+    try {
+      await investmentTransactionsRepo.deleteInvestmentTransaction(ledgerId);
+      await recomputeHoldingFromTransactions(investmentId);
+    } catch (err) {
+      toast.error(errorMessage(err, "Failed to unlink investment transaction"));
     }
   },
 
