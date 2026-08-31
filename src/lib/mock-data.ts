@@ -3,14 +3,7 @@
 // into investing) rather than being random — so every screen's numbers
 // reconcile with every other screen's.
 
-import type {
-  Category,
-  FIREProfile,
-  NetWorthSnapshot,
-  PortfolioHistoryPoint,
-  RecurringTransaction,
-  UserProfile,
-} from "./types";
+import type { Category, FIREProfile, RecurringTransaction, UserProfile } from "./types";
 
 export const user: UserProfile = {
   id: "u1",
@@ -90,61 +83,3 @@ export const recurringTransactions: RecurringTransaction[] = [
   { id: "rec_sip_nifty", label: "SIP — Nifty 50 ETF", type: "investment", amount: 4000, categoryId: CATEGORY_IDS.investment, accountId: "acc_hdfc_savings", toAccountId: "acc_zerodha", frequency: "monthly", startDate: "2024-01-10", nextDate: "2026-09-10", active: true },
   { id: "rec_emi_vehicle", label: "Vehicle Loan EMI", type: "expense", amount: 4200, categoryId: CATEGORY_IDS.other, accountId: "acc_hdfc_savings", frequency: "monthly", startDate: "2024-02-05", nextDate: "2026-09-05", active: true },
 ];
-
-// ---------- Generated monthly history ----------
-// Deterministic smooth-growth curves (no Math.random) so re-renders and
-// server/client renders always agree.
-
-function monthsBetween(count: number, endYear: number, endMonthIndex: number): string[] {
-  const out: string[] = [];
-  for (let i = count - 1; i >= 0; i--) {
-    const d = new Date(endYear, endMonthIndex - i, 1);
-    out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
-  }
-  return out;
-}
-
-const HISTORY_MONTHS = 32; // Jan 2024 -> Aug 2026 inclusive
-const monthKeys = monthsBetween(HISTORY_MONTHS, 2026, 7); // month index 7 = August
-
-function waveFactor(i: number): number {
-  // small deterministic ripple, bounded to +/-1.8%
-  return 1 + 0.018 * Math.sin(i * 0.9);
-}
-
-function interpolateExponential(start: number, end: number, i: number, n: number): number {
-  const t = i / (n - 1);
-  return start * Math.pow(end / start, t);
-}
-
-const CURRENT_TOTAL_ASSETS = 188000 + 1248550 + 65000; // cash + investments + vehicle = 1,501,550
-const CURRENT_TOTAL_LIABILITIES = 16240 + 42000; // 58,240
-const START_ASSETS = 560000;
-const START_LIABILITIES = 145000;
-
-export const netWorthHistory: NetWorthSnapshot[] = monthKeys.map((date, i) => {
-  const isLast = i === monthKeys.length - 1;
-  const assets = isLast
-    ? CURRENT_TOTAL_ASSETS
-    : Math.round(interpolateExponential(START_ASSETS, CURRENT_TOTAL_ASSETS, i, HISTORY_MONTHS) * waveFactor(i));
-  const liabilitiesRaw = isLast
-    ? CURRENT_TOTAL_LIABILITIES
-    : Math.round(interpolateExponential(START_LIABILITIES, CURRENT_TOTAL_LIABILITIES, i, HISTORY_MONTHS) * waveFactor(i + 3));
-  return { date, assets, liabilities: Math.max(liabilitiesRaw, 0) };
-});
-
-const CURRENT_TOTAL_INVESTED = 1055100;
-const CURRENT_TOTAL_VALUE = 1248550;
-const START_INVESTED = 250000;
-const START_VALUE = 260000;
-
-export const portfolioHistory: PortfolioHistoryPoint[] = monthKeys.map((date, i) => {
-  const isLast = i === monthKeys.length - 1;
-  const invested = isLast
-    ? CURRENT_TOTAL_INVESTED
-    : Math.round(interpolateExponential(START_INVESTED, CURRENT_TOTAL_INVESTED, i, HISTORY_MONTHS));
-  const value = isLast
-    ? CURRENT_TOTAL_VALUE
-    : Math.round(interpolateExponential(START_VALUE, CURRENT_TOTAL_VALUE, i, HISTORY_MONTHS) * waveFactor(i));
-  return { date, invested, value };
-});

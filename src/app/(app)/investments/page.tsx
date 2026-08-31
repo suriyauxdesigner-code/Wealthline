@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { MoreHorizontal, Pencil, TrendingUp, Trash2 } from "lucide-react";
+import { LineChart, MoreHorizontal, Pencil, TrendingUp, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AddInvestmentDialog } from "@/components/add-investment-dialog";
@@ -16,13 +16,10 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/finance/empty-state";
 import { MetricCard } from "@/components/finance/metric-card";
-import { TrendChart } from "@/components/finance/trend-chart";
 import { AllocationDonut } from "@/components/finance/allocation-donut";
-import { portfolioHistory } from "@/lib/mock-data";
 import { useAppStore } from "@/lib/store";
 import { formatINR, formatPercent } from "@/lib/calculations";
 import { allocationByGroup, ASSET_CLASS_LABEL, holdingsWithReturns } from "@/lib/investment-selectors";
-import { monthLabel } from "@/lib/selectors";
 
 const GROUP_COLORS: Record<string, string> = {
   Equity: "var(--chart-1)",
@@ -41,12 +38,6 @@ export default function InvestmentsPage() {
   const returnPct = totalInvested > 0 ? (totalReturn / totalInvested) * 100 : 0;
 
   const allocation = allocationByGroup(holdings).map((g) => ({ ...g, color: GROUP_COLORS[g.name] ?? "var(--chart-9)" }));
-
-  const trendData = portfolioHistory.map((p) => ({
-    month: monthLabel(p.date).split(" ")[0],
-    Invested: p.invested,
-    Value: p.value,
-  }));
 
   return (
     <div className="space-y-6">
@@ -73,14 +64,11 @@ export default function InvestmentsPage() {
             <CardTitle className="text-sm font-medium">Portfolio value over time</CardTitle>
           </CardHeader>
           <CardContent>
-            <TrendChart
-              data={trendData}
-              xKey="month"
-              series={[
-                { key: "Value", label: "Current value", color: "var(--chart-1)", area: true },
-                { key: "Invested", label: "Invested", color: "var(--chart-6)" },
-              ]}
-              height={280}
+            <EmptyState
+              icon={LineChart}
+              title="History will build up over time"
+              description="Portfolio trends need more than one snapshot — check back after using Wealthline for a while."
+              className="py-16"
             />
           </CardContent>
         </Card>

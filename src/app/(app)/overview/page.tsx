@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Landmark, PiggyBank, TrendingUp, Wallet } from "lucide-react";
+import { Landmark, LineChart, PiggyBank, TrendingUp, Wallet } from "lucide-react";
 
 import { AddTransactionDialog } from "@/components/add-transaction-dialog";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { MetricCard } from "@/components/finance/metric-card";
 import { CashFlowFunnel } from "@/components/finance/cash-flow-funnel";
-import { TrendChart } from "@/components/finance/trend-chart";
 import { SpendingBreakdownChart } from "@/components/finance/spending-breakdown-chart";
 import { TransactionRow } from "@/components/finance/transaction-row";
 import { InsightCard } from "@/components/finance/insight-card";
@@ -18,8 +17,8 @@ import { EmptyState } from "@/components/finance/empty-state";
 import { DateRangeSelect, type RangeOption } from "@/components/finance/date-range-select";
 import { displayName, useAuthUser } from "@/hooks/use-auth-user";
 import { useAppStore } from "@/lib/store";
-import { netWorthHistory, portfolioHistory } from "@/lib/mock-data";
-import { calcNetWorth, calcSavingsRate, formatINR } from "@/lib/calculations";
+import { calcSavingsRate, formatINR } from "@/lib/calculations";
+import { calcNetWorthBreakdown } from "@/lib/net-worth-selectors";
 import { cashFlowForMonth, monthLabel, previousMonthKeys, spendByCategory } from "@/lib/selectors";
 import { generateInsights } from "@/lib/insights";
 
@@ -33,7 +32,7 @@ function greeting(): string {
 }
 
 export default function OverviewPage() {
-  const { transactions, accounts, categories, budgets, fireProfile } = useAppStore();
+  const { transactions, accounts, categories, budgets, liabilities, otherAssets, fireProfile } = useAppStore();
   const authUser = useAuthUser();
   const [range, setRange] = React.useState<RangeOption>("this-month");
 
@@ -42,40 +41,20 @@ export default function OverviewPage() {
   const cashFlow = cashFlowForMonth(transactions, monthKey);
   const savingsRate = calcSavingsRate(cashFlow.income, cashFlow.expenses);
 
-  const lastSnapshot = netWorthHistory[netWorthHistory.length - 1];
-  const prevSnapshot = netWorthHistory[netWorthHistory.length - 2];
-  const netWorth = calcNetWorth(lastSnapshot.assets, lastSnapshot.liabilities);
-  const prevNetWorth = calcNetWorth(prevSnapshot.assets, prevSnapshot.liabilities);
-  const netWorthChangePct = ((netWorth - prevNetWorth) / Math.abs(prevNetWorth)) * 100;
-
-  const cashTotal = accounts
-    .filter((a) => (a.group === "cash" || a.group === "bank") && !a.isLiabilityAccount)
-    .reduce((s, a) => s + a.balance, 0);
-
-  const investmentsTotal = accounts
-    .filter((a) => a.group === "investment" || a.group === "other")
-    .reduce((s, a) => s + a.balance, 0);
-  const prevPortfolio = portfolioHistory[portfolioHistory.length - 2];
-  const investmentsChangePct = ((investmentsTotal - prevPortfolio.value) / prevPortfolio.value) * 100;
+  const breakdown = calcNetWorthBreakdown(accounts, liabilities, otherAssets);
+  const cashTotal = breakdown.cash + breakdown.bank;
+  const investmentsTotal = breakdown.investments;
 
   const spend = spendByCategory(transactions, categories, monthKey);
   const recentTransactions = [...transactions]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 6);
 
-  const trendData = portfolioHistory.slice(-12).map((p, i) => {
-    const nw = netWorthHistory.slice(-12)[i];
-    return {
-      month: monthLabel(p.date).split(" ")[0],
-      "Net worth": calcNetWorth(nw.assets, nw.liabilities),
-    };
-  });
-
   const insights = generateInsights({
     transactions,
     categories,
     budgets,
-    netWorthHistory,
+    netWorthHistory: [],
     fireProfile,
     currentPortfolioValue: investmentsTotal,
     currentMonthKey: CURRENT_MONTH,
@@ -98,9 +77,9 @@ export default function OverviewPage() {
 
       <Card className="py-5">
         <CardContent className="grid grid-cols-2 gap-6 px-5 sm:grid-cols-4 sm:gap-4 sm:px-6">
-          <MetricCard label="Net Worth" value={formatINR(netWorth, { compact: true })} changePct={netWorthChangePct} changeLabel="vs last month" icon={Landmark} size="lg" />
+          <MetricCard label="Net Worth" value={formatINR(breakdown.netWorth, { compact: true })} icon={Landmark} size="lg" />
           <MetricCard label="Cash" value={formatINR(cashTotal, { compact: true })} icon={Wallet} size="lg" />
-          <MetricCard label="Investments" value={formatINR(investmentsTotal, { compact: true })} changePct={investmentsChangePct} changeLabel="vs last month" icon={TrendingUp} size="lg" />
+          <MetricCard label="Investments" value={formatINR(investmentsTotal, { compact: true })} icon={TrendingUp} size="lg" />
           <MetricCard label="Savings Rate" value={`${savingsRate.toFixed(1)}%`} icon={PiggyBank} size="lg" />
         </CardContent>
       </Card>
@@ -116,12 +95,12 @@ export default function OverviewPage() {
           <CashFlowFunnel income={cashFlow.income} expenses={cashFlow.expenses} investments={cashFlow.investments} remaining={cashFlow.remaining} />
           <Separator />
           <div>
-            <p className="mb-2 text-xs font-medium text-muted-foreground">Net worth trend (12 months)</p>
-            <TrendChart
-              data={trendData}
-              xKey="month"
-              series={[{ key: "Net worth", label: "Net worth", color: "var(--chart-1)", area: true }]}
-              height={220}
+            <p className="mb-2 text-xs font-medium text-muted-foreground">Net worth trend</p>
+            <EmptyState
+              icon={LineChart}
+              title="History will build up over time"
+              description="Check back after using Wealthline for a while to see your trend here."
+              className="py-10"
             />
           </div>
         </CardContent>

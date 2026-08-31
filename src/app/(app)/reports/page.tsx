@@ -1,16 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { Download } from "lucide-react";
+import { Download, LineChart } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { EmptyState } from "@/components/finance/empty-state";
 import { TrendChart } from "@/components/finance/trend-chart";
 import { InsightCard } from "@/components/finance/insight-card";
 import { useAppStore } from "@/lib/store";
-import { netWorthHistory, portfolioHistory } from "@/lib/mock-data";
-import { calcNetWorth, calcSavingsRate, formatINR, formatPercent } from "@/lib/calculations";
+import { calcSavingsRate, formatINR, formatPercent } from "@/lib/calculations";
 import { cashFlowForMonth, monthLabel } from "@/lib/selectors";
 import { generateInsights } from "@/lib/insights";
 import { toast } from "sonner";
@@ -48,17 +48,6 @@ export default function ReportsPage() {
     "Savings rate": Number(r.savingsRate.toFixed(1)),
   }));
 
-  const netWorthTrend = netWorthHistory.slice(-12).map((n) => ({
-    month: monthLabel(n.date).split(" ")[0],
-    "Net worth": calcNetWorth(n.assets, n.liabilities),
-  }));
-
-  const portfolioTrend = portfolioHistory.slice(-12).map((p) => ({
-    month: monthLabel(p.date).split(" ")[0],
-    Value: p.value,
-    Invested: p.invested,
-  }));
-
   const investmentsTotal = accounts
     .filter((a) => a.group === "investment" || a.group === "other")
     .reduce((s, a) => s + a.balance, 0);
@@ -67,7 +56,7 @@ export default function ReportsPage() {
     transactions,
     categories,
     budgets,
-    netWorthHistory,
+    netWorthHistory: [],
     fireProfile,
     currentPortfolioValue: investmentsTotal,
     currentMonthKey: CURRENT_MONTH,
@@ -139,11 +128,11 @@ export default function ReportsPage() {
             <CardTitle className="text-sm font-medium">Net worth growth</CardTitle>
           </CardHeader>
           <CardContent>
-            <TrendChart
-              data={netWorthTrend}
-              xKey="month"
-              series={[{ key: "Net worth", label: "Net worth", color: "var(--chart-1)", area: true }]}
-              height={240}
+            <EmptyState
+              icon={LineChart}
+              title="History will build up over time"
+              description="Check back after using Wealthline for a while to see this trend."
+              className="py-14"
             />
           </CardContent>
         </Card>
@@ -153,14 +142,11 @@ export default function ReportsPage() {
             <CardTitle className="text-sm font-medium">Investment performance</CardTitle>
           </CardHeader>
           <CardContent>
-            <TrendChart
-              data={portfolioTrend}
-              xKey="month"
-              series={[
-                { key: "Value", label: "Current value", color: "var(--chart-1)", area: true },
-                { key: "Invested", label: "Invested", color: "var(--chart-6)" },
-              ]}
-              height={240}
+            <EmptyState
+              icon={LineChart}
+              title="History will build up over time"
+              description="Check back after using Wealthline for a while to see this trend."
+              className="py-14"
             />
           </CardContent>
         </Card>
