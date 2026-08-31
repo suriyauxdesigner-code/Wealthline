@@ -1,6 +1,7 @@
 "use client";
 
-import { MoreHorizontal, Trash2 } from "lucide-react";
+import * as React from "react";
+import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 
 import { AddGoalDialog } from "@/components/add-goal-dialog";
 import { Button } from "@/components/ui/button";
@@ -16,11 +17,13 @@ import { EmptyState } from "@/components/finance/empty-state";
 import { resolveIcon } from "@/components/finance/icon-map";
 import { useAppStore } from "@/lib/store";
 import { calcGoalProgress, calcRequiredMonthlyContribution, formatINR } from "@/lib/calculations";
+import type { Goal } from "@/lib/types";
 import { Target } from "lucide-react";
 import { toast } from "sonner";
 
 export default function GoalsPage() {
   const { goals, deleteGoal } = useAppStore();
+  const [editing, setEditing] = React.useState<Goal | null>(null);
 
   return (
     <div className="space-y-6">
@@ -70,6 +73,9 @@ export default function GoalsPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setEditing(goal)}>
+                          <Pencil /> Edit
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                           variant="destructive"
                           onClick={() => {
@@ -103,6 +109,15 @@ export default function GoalsPage() {
             );
           })}
         </div>
+      )}
+
+      {editing && (
+        <AddGoalDialog
+          trigger={null}
+          editGoal={editing}
+          open={!!editing}
+          onOpenChange={(v) => !v && setEditing(null)}
+        />
       )}
     </div>
   );

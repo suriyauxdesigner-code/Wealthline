@@ -1,6 +1,7 @@
 "use client";
 
-import { MoreHorizontal, TrendingUp, Trash2 } from "lucide-react";
+import * as React from "react";
+import { MoreHorizontal, Pencil, TrendingUp, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AddInvestmentDialog } from "@/components/add-investment-dialog";
@@ -33,6 +34,7 @@ const GROUP_COLORS: Record<string, string> = {
 export default function InvestmentsPage() {
   const { investments, deleteInvestment } = useAppStore();
   const holdings = holdingsWithReturns(investments);
+  const [editing, setEditing] = React.useState<(typeof holdings)[number] | null>(null);
   const totalInvested = holdings.reduce((s, h) => s + h.invested, 0);
   const totalValue = holdings.reduce((s, h) => s + h.currentValue, 0);
   const totalReturn = totalValue - totalInvested;
@@ -131,6 +133,9 @@ export default function InvestmentsPage() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setEditing(h)}>
+                      <Pencil /> Edit
+                    </DropdownMenuItem>
                     <DropdownMenuItem
                       variant="destructive"
                       onClick={() => {
@@ -186,6 +191,9 @@ export default function InvestmentsPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setEditing(h)}>
+                          <Pencil /> Edit
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                           variant="destructive"
                           onClick={() => {
@@ -206,6 +214,15 @@ export default function InvestmentsPage() {
           )}
         </CardContent>
       </Card>
+
+      {editing && (
+        <AddInvestmentDialog
+          trigger={null}
+          editInvestment={editing}
+          open={!!editing}
+          onOpenChange={(v) => !v && setEditing(null)}
+        />
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import * as React from "react";
+import { Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AddLiabilityDialog } from "@/components/add-liability-dialog";
@@ -13,9 +14,12 @@ import { useAppStore } from "@/lib/store";
 import { netWorthHistory } from "@/lib/mock-data";
 import { calcCAGR, calcNetWorth, formatINR } from "@/lib/calculations";
 import { monthLabel } from "@/lib/selectors";
+import type { Liability, OtherAsset } from "@/lib/types";
 
 export default function NetWorthPage() {
   const { accounts, liabilities, otherAssets, deleteLiability, deleteOtherAsset } = useAppStore();
+  const [editingLiability, setEditingLiability] = React.useState<Liability | null>(null);
+  const [editingAsset, setEditingAsset] = React.useState<OtherAsset | null>(null);
 
   const cash = accounts.filter((a) => a.group === "cash").reduce((s, a) => s + a.balance, 0);
   const bank = accounts.filter((a) => a.group === "bank").reduce((s, a) => s + a.balance, 0);
@@ -156,17 +160,27 @@ export default function NetWorthPage() {
                     <p className="truncate text-sm font-medium">{l.name}</p>
                     <p className="text-xs text-muted-foreground">{formatINR(l.outstanding, { compact: true })} outstanding</p>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-7 shrink-0 text-muted-foreground hover:text-negative"
-                    onClick={() => {
-                      deleteLiability(l.id);
-                      toast.success("Liability removed");
-                    }}
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
+                  <div className="flex shrink-0 items-center">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 text-muted-foreground"
+                      onClick={() => setEditingLiability(l)}
+                    >
+                      <Pencil className="size-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 text-muted-foreground hover:text-negative"
+                      onClick={() => {
+                        deleteLiability(l.id);
+                        toast.success("Liability removed");
+                      }}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
                 </div>
               ))
             )}
@@ -193,6 +207,14 @@ export default function NetWorthPage() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      className="size-7 text-muted-foreground"
+                      onClick={() => setEditingAsset(o)}
+                    >
+                      <Pencil className="size-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       className="size-7 text-muted-foreground hover:text-negative"
                       onClick={() => {
                         deleteOtherAsset(o.id);
@@ -208,6 +230,23 @@ export default function NetWorthPage() {
           </CardContent>
         </Card>
       </div>
+
+      {editingLiability && (
+        <AddLiabilityDialog
+          trigger={null}
+          editLiability={editingLiability}
+          open={!!editingLiability}
+          onOpenChange={(v) => !v && setEditingLiability(null)}
+        />
+      )}
+      {editingAsset && (
+        <AddOtherAssetDialog
+          trigger={null}
+          editAsset={editingAsset}
+          open={!!editingAsset}
+          onOpenChange={(v) => !v && setEditingAsset(null)}
+        />
+      )}
     </div>
   );
 }

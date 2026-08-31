@@ -78,21 +78,6 @@ export function AddTransactionDialog({
 
   const relevantCategories = categories.filter((c) => c.kind === TYPE_TO_CATEGORY_KIND[type]);
 
-  React.useEffect(() => {
-    if (open && editTransaction) {
-      setType(editTransaction.type);
-      setAmount(String(editTransaction.amount));
-      setMerchant(editTransaction.merchant);
-      setCategoryId(editTransaction.categoryId);
-      setAccountId(editTransaction.accountId);
-      setToAccountId(editTransaction.toAccountId ?? "");
-      setDate(new Date(editTransaction.date));
-      setNotes(editTransaction.notes ?? "");
-      setTags(editTransaction.tags?.join(", ") ?? "");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, editTransaction?.id]);
-
   function reset() {
     if (isEdit) return;
     setType(defaultType);

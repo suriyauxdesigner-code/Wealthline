@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAppStore } from "@/lib/store";
-import type { LiabilityType } from "@/lib/types";
+import type { Liability, LiabilityType } from "@/lib/types";
 
 const TYPE_OPTIONS: { value: LiabilityType; label: string }[] = [
   { value: "credit_card", label: "Credit card" },
@@ -29,18 +29,35 @@ const TYPE_OPTIONS: { value: LiabilityType; label: string }[] = [
   { value: "other", label: "Other debt" },
 ];
 
-export function AddLiabilityDialog() {
-  const [open, setOpen] = React.useState(false);
-  const addLiability = useAppStore((s) => s.addLiability);
+interface AddLiabilityDialogProps {
+  /** When set, the dialog edits this liability instead of creating one. */
+  editLiability?: Liability;
+  trigger?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}
 
-  const [name, setName] = React.useState("");
-  const [type, setType] = React.useState<LiabilityType>("personal_loan");
-  const [principal, setPrincipal] = React.useState("");
-  const [outstanding, setOutstanding] = React.useState("");
-  const [interestRate, setInterestRate] = React.useState("");
-  const [monthlyPayment, setMonthlyPayment] = React.useState("");
+export function AddLiabilityDialog({ editLiability, trigger, open: openProp, onOpenChange }: AddLiabilityDialogProps) {
+  const isEdit = !!editLiability;
+  const [openState, setOpenState] = React.useState(false);
+  const open = openProp ?? openState;
+  const setOpen = onOpenChange ?? setOpenState;
+
+  const addLiability = useAppStore((s) => s.addLiability);
+  const updateLiability = useAppStore((s) => s.updateLiability);
+
+  const [name, setName] = React.useState(editLiability?.name ?? "");
+  const [type, setType] = React.useState<LiabilityType>(editLiability?.type ?? "personal_loan");
+  const [principal, setPrincipal] = React.useState(editLiability ? String(editLiability.principal) : "");
+  const [outstanding, setOutstanding] = React.useState(editLiability ? String(editLiability.outstanding) : "");
+  const [interestRate, setInterestRate] = React.useState(editLiability ? String(editLiability.interestRate) : "");
+  const [monthlyPayment, setMonthlyPayment] = React.useState(
+    editLiability ? String(editLiability.monthlyPayment) : ""
+  );
+
 
   function reset() {
+    if (isEdit) return;
     setName("");
     setType("personal_loan");
     setPrincipal("");
@@ -55,15 +72,22 @@ export function AddLiabilityDialog() {
     const numericOutstanding = Number(outstanding);
     if (!name || !numericPrincipal || !numericOutstanding) return;
 
-    await addLiability({
+    const payload = {
       name,
       type,
       principal: numericPrincipal,
       outstanding: numericOutstanding,
       interestRate: Number(interestRate) || 0,
       monthlyPayment: Number(monthlyPayment) || 0,
-    });
-    toast.success("Liability added", { description: name });
+    };
+
+    if (isEdit) {
+      await updateLiability(editLiability!.id, payload);
+      toast.success("Liability updated", { description: name });
+    } else {
+      await addLiability(payload);
+      toast.success("Liability added", { description: name });
+    }
     reset();
     setOpen(false);
   }
@@ -76,15 +100,21 @@ export function AddLiabilityDialog() {
         if (!v) reset();
       }}
     >
-      <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
-          <Plus /> Add liability
-        </Button>
-      </DialogTrigger>
+      {trigger !== null && (
+        <DialogTrigger asChild>
+          {trigger ?? (
+            <Button size="sm" variant="outline">
+              <Plus /> Add liability
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Add liability</DialogTitle>
-          <DialogDescription>Track a loan or debt that counts against your net worth.</DialogDescription>
+          <DialogTitle>{isEdit ? "Edit liability" : "Add liability"}</DialogTitle>
+          <DialogDescription>
+            {isEdit ? "Update this liability's details." : "Track a loan or debt that counts against your net worth."}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
@@ -160,7 +190,7 @@ export function AddLiabilityDialog() {
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit">Add liability</Button>
+            <Button type="submit">{isEdit ? "Save changes" : "Add liability"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

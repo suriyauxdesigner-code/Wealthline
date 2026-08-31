@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAppStore } from "@/lib/store";
-import type { OtherAssetCategory } from "@/lib/types";
+import type { OtherAsset, OtherAssetCategory } from "@/lib/types";
 
 const CATEGORY_OPTIONS: { value: OtherAssetCategory; label: string }[] = [
   { value: "property", label: "Property" },
@@ -26,15 +26,30 @@ const CATEGORY_OPTIONS: { value: OtherAssetCategory; label: string }[] = [
   { value: "other", label: "Other" },
 ];
 
-export function AddOtherAssetDialog() {
-  const [open, setOpen] = React.useState(false);
-  const addOtherAsset = useAppStore((s) => s.addOtherAsset);
+interface AddOtherAssetDialogProps {
+  /** When set, the dialog edits this asset instead of creating one. */
+  editAsset?: OtherAsset;
+  trigger?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}
 
-  const [name, setName] = React.useState("");
-  const [category, setCategory] = React.useState<OtherAssetCategory>("other");
-  const [value, setValue] = React.useState("");
+export function AddOtherAssetDialog({ editAsset, trigger, open: openProp, onOpenChange }: AddOtherAssetDialogProps) {
+  const isEdit = !!editAsset;
+  const [openState, setOpenState] = React.useState(false);
+  const open = openProp ?? openState;
+  const setOpen = onOpenChange ?? setOpenState;
+
+  const addOtherAsset = useAppStore((s) => s.addOtherAsset);
+  const updateOtherAsset = useAppStore((s) => s.updateOtherAsset);
+
+  const [name, setName] = React.useState(editAsset?.name ?? "");
+  const [category, setCategory] = React.useState<OtherAssetCategory>(editAsset?.category ?? "other");
+  const [value, setValue] = React.useState(editAsset ? String(editAsset.value) : "");
+
 
   function reset() {
+    if (isEdit) return;
     setName("");
     setCategory("other");
     setValue("");
@@ -45,8 +60,13 @@ export function AddOtherAssetDialog() {
     const numericValue = Number(value);
     if (!name || !numericValue) return;
 
-    await addOtherAsset({ name, category, value: numericValue });
-    toast.success("Asset added", { description: name });
+    if (isEdit) {
+      await updateOtherAsset(editAsset!.id, { name, category, value: numericValue });
+      toast.success("Asset updated", { description: name });
+    } else {
+      await addOtherAsset({ name, category, value: numericValue });
+      toast.success("Asset added", { description: name });
+    }
     reset();
     setOpen(false);
   }
@@ -59,15 +79,21 @@ export function AddOtherAssetDialog() {
         if (!v) reset();
       }}
     >
-      <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
-          <Plus /> Add asset
-        </Button>
-      </DialogTrigger>
+      {trigger !== null && (
+        <DialogTrigger asChild>
+          {trigger ?? (
+            <Button size="sm" variant="outline">
+              <Plus /> Add asset
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Add other asset</DialogTitle>
-          <DialogDescription>Property, vehicles, or anything else that counts toward net worth.</DialogDescription>
+          <DialogTitle>{isEdit ? "Edit asset" : "Add other asset"}</DialogTitle>
+          <DialogDescription>
+            {isEdit ? "Update this asset's details." : "Property, vehicles, or anything else that counts toward net worth."}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
@@ -109,7 +135,7 @@ export function AddOtherAssetDialog() {
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit">Add asset</Button>
+            <Button type="submit">{isEdit ? "Save changes" : "Add asset"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

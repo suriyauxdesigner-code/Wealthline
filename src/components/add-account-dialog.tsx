@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAppStore } from "@/lib/store";
-import type { AccountGroup, AccountType } from "@/lib/types";
+import type { Account, AccountGroup, AccountType } from "@/lib/types";
 
 const TYPE_OPTIONS: { group: AccountGroup; type: AccountType; label: string }[] = [
   { group: "cash", type: "cash_wallet", label: "Cash wallet" },
@@ -35,51 +35,85 @@ const TYPE_OPTIONS: { group: AccountGroup; type: AccountType; label: string }[] 
   { group: "other", type: "gold", label: "Gold" },
 ];
 
-export function AddAccountDialog() {
-  const [open, setOpen] = React.useState(false);
-  const addAccount = useAppStore((s) => s.addAccount);
+function typeIndexFor(group: AccountGroup, type: AccountType): string {
+  const i = TYPE_OPTIONS.findIndex((o) => o.group === group && o.type === type);
+  return String(i === -1 ? 0 : i);
+}
 
-  const [name, setName] = React.useState("");
-  const [institution, setInstitution] = React.useState("");
-  const [balance, setBalance] = React.useState("");
-  const [typeIndex, setTypeIndex] = React.useState("0");
+interface AddAccountDialogProps {
+  /** When set, the dialog edits this account instead of creating one. */
+  editAccount?: Account;
+  trigger?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}
+
+export function AddAccountDialog({ editAccount, trigger, open: openProp, onOpenChange }: AddAccountDialogProps) {
+  const isEdit = !!editAccount;
+  const [openState, setOpenState] = React.useState(false);
+  const open = openProp ?? openState;
+  const setOpen = onOpenChange ?? setOpenState;
+
+  const addAccount = useAppStore((s) => s.addAccount);
+  const updateAccount = useAppStore((s) => s.updateAccount);
+
+  const [name, setName] = React.useState(editAccount?.name ?? "");
+  const [institution, setInstitution] = React.useState(editAccount?.institution ?? "");
+  const [balance, setBalance] = React.useState(editAccount ? String(editAccount.balance) : "");
+  const [typeIndex, setTypeIndex] = React.useState(
+    editAccount ? typeIndexFor(editAccount.group, editAccount.type) : "0"
+  );
 
   function reset() {
+    if (isEdit) return;
     setName("");
     setInstitution("");
     setBalance("");
     setTypeIndex("0");
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name) return;
     const option = TYPE_OPTIONS[Number(typeIndex)];
-    addAccount({
+    const payload = {
       name,
       institution: institution || "—",
       balance: Number(balance) || 0,
-      currency: "INR",
+      currency: "INR" as const,
       group: option.group,
       type: option.type,
       isLiabilityAccount: option.group === "credit",
-    });
-    toast.success("Account added", { description: name });
+    };
+
+    if (isEdit) {
+      await updateAccount(editAccount!.id, payload);
+      toast.success("Account updated", { description: name });
+    } else {
+      await addAccount(payload);
+      toast.success("Account added", { description: name });
+    }
     reset();
     setOpen(false);
   }
 
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) reset(); }}>
-      <DialogTrigger asChild>
-        <Button size="sm">
-          <Plus /> Add account
-        </Button>
-      </DialogTrigger>
+      {trigger !== null && (
+        <DialogTrigger asChild>
+          {trigger ?? (
+            <Button size="sm">
+              <Plus /> Add account
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Add account</DialogTitle>
-          <DialogDescription>Track a new cash, bank, credit, or investment account.</DialogDescription>
+          <DialogTitle>{isEdit ? "Edit account" : "Add account"}</DialogTitle>
+          <DialogDescription>
+            {isEdit ? "Update this account's details." : "Track a new cash, bank, credit, or investment account."}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
@@ -111,7 +145,7 @@ export function AddAccountDialog() {
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit">Add account</Button>
+            <Button type="submit">{isEdit ? "Save changes" : "Add account"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

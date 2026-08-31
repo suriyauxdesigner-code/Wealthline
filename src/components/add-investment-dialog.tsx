@@ -21,27 +21,46 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ASSET_CLASS_LABEL } from "@/lib/investment-selectors";
 import { useAppStore } from "@/lib/store";
-import type { AssetClass } from "@/lib/types";
+import type { AssetClass, Investment } from "@/lib/types";
 
 const ASSET_CLASSES = Object.keys(ASSET_CLASS_LABEL) as AssetClass[];
 
-export function AddInvestmentDialog() {
-  const [open, setOpen] = React.useState(false);
+interface AddInvestmentDialogProps {
+  /** When set, the dialog edits this investment instead of creating one. */
+  editInvestment?: Investment;
+  trigger?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}
+
+export function AddInvestmentDialog({
+  editInvestment,
+  trigger,
+  open: openProp,
+  onOpenChange,
+}: AddInvestmentDialogProps) {
+  const isEdit = !!editInvestment;
+  const [openState, setOpenState] = React.useState(false);
+  const open = openProp ?? openState;
+  const setOpen = onOpenChange ?? setOpenState;
+
   const accounts = useAppStore((s) => s.accounts);
   const addInvestment = useAppStore((s) => s.addInvestment);
+  const updateInvestment = useAppStore((s) => s.updateInvestment);
 
-  const [name, setName] = React.useState("");
-  const [assetClass, setAssetClass] = React.useState<AssetClass>("equity");
-  const [accountId, setAccountId] = React.useState("");
-  const [quantity, setQuantity] = React.useState("");
-  const [averageCost, setAverageCost] = React.useState("");
-  const [currentPrice, setCurrentPrice] = React.useState("");
+  const [name, setName] = React.useState(editInvestment?.name ?? "");
+  const [assetClass, setAssetClass] = React.useState<AssetClass>(editInvestment?.assetClass ?? "equity");
+  const [accountId, setAccountId] = React.useState(editInvestment?.accountId ?? "");
+  const [quantity, setQuantity] = React.useState(editInvestment ? String(editInvestment.quantity) : "");
+  const [averageCost, setAverageCost] = React.useState(editInvestment ? String(editInvestment.averageCost) : "");
+  const [currentPrice, setCurrentPrice] = React.useState(editInvestment ? String(editInvestment.currentPrice) : "");
 
   // Accounts load asynchronously after mount, so default to the first one
   // without a separate effect just to sync that.
   const selectedAccountId = accountId || accounts[0]?.id || "";
 
   function reset() {
+    if (isEdit) return;
     setName("");
     setAssetClass("equity");
     setAccountId("");
@@ -57,15 +76,22 @@ export function AddInvestmentDialog() {
     const numericCurrentPrice = Number(currentPrice);
     if (!name || !selectedAccountId || !numericQuantity || !numericAverageCost || !numericCurrentPrice) return;
 
-    await addInvestment({
+    const payload = {
       name,
       assetClass,
       accountId: selectedAccountId,
       quantity: numericQuantity,
       averageCost: numericAverageCost,
       currentPrice: numericCurrentPrice,
-    });
-    toast.success("Investment added", { description: name });
+    };
+
+    if (isEdit) {
+      await updateInvestment(editInvestment!.id, payload);
+      toast.success("Investment updated", { description: name });
+    } else {
+      await addInvestment(payload);
+      toast.success("Investment added", { description: name });
+    }
     reset();
     setOpen(false);
   }
@@ -78,15 +104,21 @@ export function AddInvestmentDialog() {
         if (!v) reset();
       }}
     >
-      <DialogTrigger asChild>
-        <Button size="sm">
-          <Plus /> Add investment
-        </Button>
-      </DialogTrigger>
+      {trigger !== null && (
+        <DialogTrigger asChild>
+          {trigger ?? (
+            <Button size="sm">
+              <Plus /> Add investment
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Add investment</DialogTitle>
-          <DialogDescription>Track a holding — stocks, funds, gold, or crypto.</DialogDescription>
+          <DialogTitle>{isEdit ? "Edit investment" : "Add investment"}</DialogTitle>
+          <DialogDescription>
+            {isEdit ? "Update this holding's details." : "Track a holding — stocks, funds, gold, or crypto."}
+          </DialogDescription>
         </DialogHeader>
         {accounts.length === 0 ? (
           <Alert>
@@ -178,7 +210,7 @@ export function AddInvestmentDialog() {
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit">Add investment</Button>
+            <Button type="submit">{isEdit ? "Save changes" : "Add investment"}</Button>
           </DialogFooter>
         </form>
         )}
