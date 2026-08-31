@@ -52,9 +52,9 @@ export default function InvestmentsPage() {
 
       <Card className="py-5">
         <CardContent className="grid grid-cols-2 gap-6 px-5 sm:grid-cols-4 sm:px-6">
-          <MetricCard label="Portfolio Value" value={formatINR(totalValue, { compact: true })} size="lg" />
-          <MetricCard label="Invested" value={formatINR(totalInvested, { compact: true })} size="lg" />
-          <MetricCard label="Total Returns" value={formatINR(totalReturn, { compact: true })} size="lg" />
+          <MetricCard label="Portfolio Value" value={formatINR(totalValue)} size="lg" />
+          <MetricCard label="Invested" value={formatINR(totalInvested)} size="lg" />
+          <MetricCard label="Total Returns" value={formatINR(totalReturn)} size="lg" />
           <MetricCard label="Return" value={formatPercent(returnPct, 1)} size="lg" />
         </CardContent>
       </Card>
