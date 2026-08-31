@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 
@@ -20,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ASSET_CLASS_LABEL, isUnitBasedAssetClass } from "@/lib/investment-selectors";
+import { formatINR } from "@/lib/calculations";
 import { useAppStore } from "@/lib/store";
 import type { AssetClass, Investment } from "@/lib/types";
 
@@ -43,6 +45,7 @@ export function AddInvestmentDialog({
   const [openState, setOpenState] = React.useState(false);
   const open = openProp ?? openState;
   const setOpen = onOpenChange ?? setOpenState;
+  const router = useRouter();
 
   const accounts = useAppStore((s) => s.accounts);
   const addInvestment = useAppStore((s) => s.addInvestment);
@@ -51,8 +54,9 @@ export function AddInvestmentDialog({
   const [name, setName] = React.useState(editInvestment?.name ?? "");
   const [assetClass, setAssetClass] = React.useState<AssetClass>(editInvestment?.assetClass ?? "equity");
   const [accountId, setAccountId] = React.useState(editInvestment?.accountId ?? "");
-  const [quantity, setQuantity] = React.useState(editInvestment ? String(editInvestment.quantity) : "");
-  const [averageCost, setAverageCost] = React.useState(editInvestment ? String(editInvestment.averageCost) : "");
+  // Unit-based holdings only ever expose the LTP for editing here — quantity
+  // and average cost are derived from the transaction log (see the detail
+  // page's "Log transaction"), so they never diverge from that history.
   const [currentPrice, setCurrentPrice] = React.useState(editInvestment ? String(editInvestment.currentPrice) : "");
   // Value-based holdings (FD/EPF/PPF/Bonds) store quantity=1 and reuse
   // averageCost/currentPrice as investedAmount/currentValue — these two
@@ -63,6 +67,7 @@ export function AddInvestmentDialog({
   const [currentValue, setCurrentValue] = React.useState(
     editInvestment ? String(editInvestment.quantity * editInvestment.currentPrice) : ""
   );
+  const [submitting, setSubmitting] = React.useState(false);
 
   const unitBased = isUnitBasedAssetClass(assetClass);
 
@@ -75,8 +80,6 @@ export function AddInvestmentDialog({
     setName("");
     setAssetClass("equity");
     setAccountId("");
-    setQuantity("");
-    setAverageCost("");
     setCurrentPrice("");
     setInvestedAmount("");
     setCurrentValue("");
@@ -86,43 +89,64 @@ export function AddInvestmentDialog({
     e.preventDefault();
     if (!name || !selectedAccountId) return;
 
-    let payload: Omit<Investment, "id">;
-    if (unitBased) {
-      const numericQuantity = Number(quantity);
-      const numericAverageCost = Number(averageCost);
-      const numericCurrentPrice = Number(currentPrice);
-      if (!numericQuantity || !numericAverageCost || !numericCurrentPrice) return;
-      payload = {
-        name,
-        assetClass,
-        accountId: selectedAccountId,
-        quantity: numericQuantity,
-        averageCost: numericAverageCost,
-        currentPrice: numericCurrentPrice,
-      };
-    } else {
-      const numericInvested = Number(investedAmount);
-      const numericCurrent = Number(currentValue);
-      if (!numericInvested || !numericCurrent) return;
-      payload = {
-        name,
-        assetClass,
-        accountId: selectedAccountId,
-        quantity: 1,
-        averageCost: numericInvested,
-        currentPrice: numericCurrent,
-      };
+    setSubmitting(true);
+    try {
+      if (unitBased) {
+        if (isEdit) {
+          const numericCurrentPrice = Number(currentPrice);
+          await updateInvestment(editInvestment!.id, {
+            name,
+            assetClass,
+            accountId: selectedAccountId,
+            currentPrice: numericCurrentPrice || editInvestment!.currentPrice,
+          });
+          toast.success("Investment updated", { description: name });
+          reset();
+          setOpen(false);
+        } else {
+          const created = await addInvestment({
+            name,
+            assetClass,
+            accountId: selectedAccountId,
+            quantity: 0,
+            averageCost: 0,
+            currentPrice: 0,
+          });
+          reset();
+          setOpen(false);
+          if (created) {
+            toast.success("Investment added", { description: "Now log its units to build a history." });
+            router.push(`/investments/${created.id}`);
+          }
+        }
+      } else {
+        const numericInvested = Number(investedAmount);
+        const numericCurrent = Number(currentValue);
+        if (!numericInvested || !numericCurrent) {
+          setSubmitting(false);
+          return;
+        }
+        const payload = {
+          name,
+          assetClass,
+          accountId: selectedAccountId,
+          quantity: 1,
+          averageCost: numericInvested,
+          currentPrice: numericCurrent,
+        };
+        if (isEdit) {
+          await updateInvestment(editInvestment!.id, payload);
+          toast.success("Investment updated", { description: name });
+        } else {
+          await addInvestment(payload);
+          toast.success("Investment added", { description: name });
+        }
+        reset();
+        setOpen(false);
+      }
+    } finally {
+      setSubmitting(false);
     }
-
-    if (isEdit) {
-      await updateInvestment(editInvestment!.id, payload);
-      toast.success("Investment updated", { description: name });
-    } else {
-      await addInvestment(payload);
-      toast.success("Investment added", { description: name });
-    }
-    reset();
-    setOpen(false);
   }
 
   return (
@@ -146,7 +170,11 @@ export function AddInvestmentDialog({
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit investment" : "Add investment"}</DialogTitle>
           <DialogDescription>
-            {isEdit ? "Update this holding's details." : "Track a holding — stocks, funds, gold, or crypto."}
+            {isEdit
+              ? unitBased
+                ? "Update this holding's details. Quantity and average cost come from its transaction log."
+                : "Update this holding's details."
+              : "Register a holding — you'll log its units and price next."}
           </DialogDescription>
         </DialogHeader>
         {accounts.length === 0 ? (
@@ -174,7 +202,11 @@ export function AddInvestmentDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Asset class</Label>
-              <Select value={assetClass} onValueChange={(v) => setAssetClass(v as AssetClass)}>
+              <Select
+                value={assetClass}
+                onValueChange={(v) => setAssetClass(v as AssetClass)}
+                disabled={isEdit}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -205,38 +237,33 @@ export function AddInvestmentDialog({
           </div>
 
           {unitBased ? (
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="investment-quantity">Quantity</Label>
-                <Input
-                  id="investment-quantity"
-                  inputMode="decimal"
-                  placeholder="0"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value.replace(/[^0-9.]/g, ""))}
-                />
+            isEdit && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3 rounded-md border border-border/70 bg-muted/30 px-3 py-2 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Quantity</p>
+                    <p className="font-medium tabular-nums">{editInvestment!.quantity.toLocaleString("en-IN")}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Avg. cost</p>
+                    <p className="font-medium tabular-nums">{formatINR(editInvestment!.averageCost)}</p>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="investment-ltp">Current price / NAV (LTP)</Label>
+                  <Input
+                    id="investment-ltp"
+                    inputMode="decimal"
+                    placeholder="0"
+                    value={currentPrice}
+                    onChange={(e) => setCurrentPrice(e.target.value.replace(/[^0-9.]/g, ""))}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  To change quantity or average cost, log a buy/sell on the holding&apos;s detail page instead.
+                </p>
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="investment-avg-cost">Avg. cost</Label>
-                <Input
-                  id="investment-avg-cost"
-                  inputMode="decimal"
-                  placeholder="0"
-                  value={averageCost}
-                  onChange={(e) => setAverageCost(e.target.value.replace(/[^0-9.]/g, ""))}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="investment-ltp">LTP</Label>
-                <Input
-                  id="investment-ltp"
-                  inputMode="decimal"
-                  placeholder="0"
-                  value={currentPrice}
-                  onChange={(e) => setCurrentPrice(e.target.value.replace(/[^0-9.]/g, ""))}
-                />
-              </div>
-            </div>
+            )
           ) : (
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
@@ -266,7 +293,9 @@ export function AddInvestmentDialog({
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit">{isEdit ? "Save changes" : "Add investment"}</Button>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "Saving…" : isEdit ? "Save changes" : "Add investment"}
+            </Button>
           </DialogFooter>
         </form>
         )}

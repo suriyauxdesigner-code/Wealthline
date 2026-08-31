@@ -89,7 +89,7 @@ interface AppState {
   updateGoal: (id: string, patch: Partial<Goal>) => Promise<void>;
   deleteGoal: (id: string) => Promise<void>;
 
-  addInvestment: (i: Omit<Investment, "id">) => Promise<void>;
+  addInvestment: (i: Omit<Investment, "id">) => Promise<Investment | undefined>;
   updateInvestment: (id: string, patch: Partial<Investment>) => Promise<void>;
   deleteInvestment: (id: string) => Promise<void>;
   logInvestmentTransaction: (
@@ -427,8 +427,10 @@ export const useAppStore = create<AppState>((set, get) => {
     try {
       const created = await investmentsRepo.createInvestment(i);
       set((state) => ({ investments: [...state.investments, created] }));
+      return created;
     } catch (err) {
       toast.error(errorMessage(err, "Failed to add investment"));
+      return undefined;
     }
   },
 

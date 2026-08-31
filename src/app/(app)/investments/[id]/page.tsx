@@ -85,6 +85,14 @@ export default function InvestmentDetailPage({ params }: { params: Promise<{ id:
   const currentValue = calcCurrentValue(investment.quantity, investment.currentPrice);
   const gain = currentValue - invested;
   const returnPct = calcReturnPct(invested, currentValue);
+  // A holding created before per-transaction tracking (or whose opening
+  // position was never logged) has a quantity with nothing behind it in
+  // history — offer to back-fill it as the first Buy instead of leaving the
+  // history tab silently empty next to a non-zero quantity.
+  const openingBalance =
+    transactions?.length === 0 && investment.quantity > 0
+      ? { quantity: investment.quantity, price: investment.averageCost }
+      : undefined;
 
   async function handleDeleteTransaction(txId: string) {
     if (!investment) return;
@@ -129,7 +137,11 @@ export default function InvestmentDetailPage({ params }: { params: Promise<{ id:
           <p className="text-sm text-muted-foreground">{ASSET_CLASS_LABEL[investment.assetClass]}</p>
         </div>
         {unitBased && (
-          <LogInvestmentTransactionDialog investment={investment} onLogged={refetchTransactions} />
+          <LogInvestmentTransactionDialog
+            investment={investment}
+            onLogged={refetchTransactions}
+            openingBalance={openingBalance}
+          />
         )}
       </div>
 
@@ -171,9 +183,19 @@ export default function InvestmentDetailPage({ params }: { params: Promise<{ id:
             ) : transactions.length === 0 ? (
               <EmptyState
                 icon={History}
-                title="No transactions logged yet"
-                description="Log your buys, sells, and dividends to build this holding's history."
-                action={<LogInvestmentTransactionDialog investment={investment} onLogged={refetchTransactions} />}
+                title={openingBalance ? "This holding has no logged history yet" : "No transactions logged yet"}
+                description={
+                  openingBalance
+                    ? `It shows ${openingBalance.quantity.toLocaleString("en-IN")} units — log that as your opening Buy to start tracking it.`
+                    : "Log your buys, sells, and dividends to build this holding's history."
+                }
+                action={
+                  <LogInvestmentTransactionDialog
+                    investment={investment}
+                    onLogged={refetchTransactions}
+                    openingBalance={openingBalance}
+                  />
+                }
               />
             ) : (
               <Table>

@@ -35,6 +35,14 @@ interface LogInvestmentTransactionDialogProps {
   onOpenChange?: (open: boolean) => void;
   /** Called after a transaction is successfully logged — use to refetch the holding's history. */
   onLogged?: () => void;
+  /**
+   * Pre-fills the Buy fields with an existing quantity/avg cost that has no
+   * logged history yet (a holding created before per-transaction tracking,
+   * or one whose opening position hasn't been logged) — so the user can
+   * back-fill it as their first transaction in one click instead of
+   * re-typing numbers they already entered.
+   */
+  openingBalance?: { quantity: number; price: number };
 }
 
 export function LogInvestmentTransactionDialog({
@@ -43,6 +51,7 @@ export function LogInvestmentTransactionDialog({
   open: openProp,
   onOpenChange,
   onLogged,
+  openingBalance,
 }: LogInvestmentTransactionDialogProps) {
   const [openState, setOpenState] = React.useState(false);
   const open = openProp ?? openState;
@@ -51,8 +60,10 @@ export function LogInvestmentTransactionDialog({
   const logInvestmentTransaction = useAppStore((s) => s.logInvestmentTransaction);
 
   const [type, setType] = React.useState<InvestmentTransactionType>("buy");
-  const [quantity, setQuantity] = React.useState("");
-  const [price, setPrice] = React.useState(investment.currentPrice ? String(investment.currentPrice) : "");
+  const [quantity, setQuantity] = React.useState(openingBalance ? String(openingBalance.quantity) : "");
+  const [price, setPrice] = React.useState(
+    openingBalance ? String(openingBalance.price) : investment.currentPrice ? String(investment.currentPrice) : ""
+  );
   const [amount, setAmount] = React.useState("");
   const [date, setDate] = React.useState<Date>(new Date());
   const [submitting, setSubmitting] = React.useState(false);
@@ -64,8 +75,8 @@ export function LogInvestmentTransactionDialog({
 
   function reset() {
     setType("buy");
-    setQuantity("");
-    setPrice(investment.currentPrice ? String(investment.currentPrice) : "");
+    setQuantity(openingBalance ? String(openingBalance.quantity) : "");
+    setPrice(openingBalance ? String(openingBalance.price) : investment.currentPrice ? String(investment.currentPrice) : "");
     setAmount("");
     setDate(new Date());
   }
@@ -109,10 +120,20 @@ export function LogInvestmentTransactionDialog({
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Log transaction</DialogTitle>
-          <DialogDescription>Record a buy, sell, or dividend for {investment.name}.</DialogDescription>
+          <DialogDescription>
+            {openingBalance
+              ? "Confirm your existing position to start this holding's history."
+              : `Record a buy, sell, or dividend for ${investment.name}.`}
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {openingBalance && (
+            <p className="rounded-md border border-border/70 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+              We found {openingBalance.quantity.toLocaleString("en-IN")} units at {formatINR(openingBalance.price)} avg.
+              cost with no logged history — pre-filled below as your opening Buy.
+            </p>
+          )}
           <Tabs value={type} onValueChange={(v) => setType(v as InvestmentTransactionType)}>
             <TabsList className="grid w-full grid-cols-3">
               {(Object.keys(TYPE_LABEL) as InvestmentTransactionType[]).map((t) => (
