@@ -1,7 +1,9 @@
 "use client";
 
+import * as React from "react";
 import { ChevronsUpDown, LogOut, Settings, User } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -11,15 +13,35 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { user } from "@/lib/mock-data";
+import { createClient } from "@/lib/supabase/client";
 
 export function UserMenu() {
-  const initials = user.name
+  const router = useRouter();
+  const [displayName, setDisplayName] = React.useState("Account");
+
+  React.useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      const authUser = data.user;
+      if (!authUser) return;
+      const name = (authUser.user_metadata?.name as string | undefined) || authUser.email || "Account";
+      setDisplayName(name);
+    });
+  }, []);
+
+  const initials = displayName
     .split(" ")
     .map((p) => p[0])
     .join("")
     .slice(0, 2)
     .toUpperCase();
+
+  async function handleLogout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  }
 
   return (
     <DropdownMenu>
@@ -28,7 +50,7 @@ export function UserMenu() {
           <Avatar className="size-6">
             <AvatarFallback className="bg-primary/15 text-primary text-[11px]">{initials}</AvatarFallback>
           </Avatar>
-          <span className="flex-1 truncate text-left font-medium">{user.name}</span>
+          <span className="flex-1 truncate text-left font-medium">{displayName}</span>
           <ChevronsUpDown className="size-3.5 text-muted-foreground" />
         </button>
       </DropdownMenuTrigger>
@@ -44,7 +66,7 @@ export function UserMenu() {
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive">
+        <DropdownMenuItem variant="destructive" onClick={handleLogout}>
           <LogOut /> Log out
         </DropdownMenuItem>
       </DropdownMenuContent>
