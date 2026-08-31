@@ -1,10 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { LineChart, Pencil, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, LineChart, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { AddLiabilityDialog } from "@/components/add-liability-dialog";
 import { AddOtherAssetDialog } from "@/components/add-other-asset-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +13,7 @@ import { MetricCard } from "@/components/finance/metric-card";
 import { useAppStore } from "@/lib/store";
 import { formatINR } from "@/lib/calculations";
 import { calcNetWorthBreakdown } from "@/lib/net-worth-selectors";
-import type { Liability, OtherAsset } from "@/lib/types";
+import type { OtherAsset } from "@/lib/types";
 
 const LIABILITY_LABEL: Record<string, string> = {
   credit_card: "Credit cards",
@@ -25,8 +25,7 @@ const LIABILITY_LABEL: Record<string, string> = {
 };
 
 export default function NetWorthPage() {
-  const { accounts, liabilities, otherAssets, deleteLiability, deleteOtherAsset } = useAppStore();
-  const [editingLiability, setEditingLiability] = React.useState<Liability | null>(null);
+  const { accounts, liabilities, otherAssets, deleteOtherAsset } = useAppStore();
   const [editingAsset, setEditingAsset] = React.useState<OtherAsset | null>(null);
 
   const breakdown = calcNetWorthBreakdown(accounts, liabilities, otherAssets);
@@ -98,8 +97,11 @@ export default function NetWorthPage() {
         </Card>
 
         <Card>
-          <CardHeader>
+          <CardHeader className="flex-row items-center justify-between">
             <CardTitle className="text-sm font-medium">Liabilities</CardTitle>
+            <Link href="/debts" className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+              Manage debts <ArrowRight className="size-3" />
+            </Link>
           </CardHeader>
           <CardContent className="space-y-3">
             {liabilityRows.length === 0 ? (
@@ -117,101 +119,49 @@ export default function NetWorthPage() {
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader className="flex-row items-center justify-between">
-            <CardTitle className="text-sm font-medium">Manage liabilities</CardTitle>
-            <AddLiabilityDialog />
-          </CardHeader>
-          <CardContent className="space-y-1">
-            {liabilities.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No liabilities added yet.</p>
-            ) : (
-              liabilities.map((l) => (
-                <div key={l.id} className="flex items-center justify-between rounded-md px-2 py-2 hover:bg-muted/50">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{l.name}</p>
-                    <p className="text-xs text-muted-foreground">{formatINR(l.outstanding, { compact: true })} outstanding</p>
-                  </div>
-                  <div className="flex shrink-0 items-center">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-7 text-muted-foreground"
-                      onClick={() => setEditingLiability(l)}
-                    >
-                      <Pencil className="size-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-7 text-muted-foreground hover:text-negative"
-                      onClick={() => {
-                        deleteLiability(l.id);
-                        toast.success("Liability removed");
-                      }}
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
-                  </div>
+      <Card>
+        <CardHeader className="flex-row items-center justify-between">
+          <CardTitle className="text-sm font-medium">Manage other assets</CardTitle>
+          <AddOtherAssetDialog />
+        </CardHeader>
+        <CardContent className="space-y-1">
+          {otherAssets.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No other assets added yet.</p>
+          ) : (
+            otherAssets.map((o) => (
+              <div key={o.id} className="flex items-center justify-between rounded-md px-2 py-2 hover:bg-muted/50">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{o.name}</p>
+                  <p className="text-xs capitalize text-muted-foreground">{o.category}</p>
                 </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex-row items-center justify-between">
-            <CardTitle className="text-sm font-medium">Manage other assets</CardTitle>
-            <AddOtherAssetDialog />
-          </CardHeader>
-          <CardContent className="space-y-1">
-            {otherAssets.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No other assets added yet.</p>
-            ) : (
-              otherAssets.map((o) => (
-                <div key={o.id} className="flex items-center justify-between rounded-md px-2 py-2 hover:bg-muted/50">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{o.name}</p>
-                    <p className="text-xs capitalize text-muted-foreground">{o.category}</p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <span className="text-sm tabular-nums">{formatINR(o.value, { compact: true })}</span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-7 text-muted-foreground"
-                      onClick={() => setEditingAsset(o)}
-                    >
-                      <Pencil className="size-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-7 text-muted-foreground hover:text-negative"
-                      onClick={() => {
-                        deleteOtherAsset(o.id);
-                        toast.success("Asset removed");
-                      }}
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
-                  </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="text-sm tabular-nums">{formatINR(o.value, { compact: true })}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-7 text-muted-foreground"
+                    onClick={() => setEditingAsset(o)}
+                  >
+                    <Pencil className="size-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-7 text-muted-foreground hover:text-negative"
+                    onClick={() => {
+                      deleteOtherAsset(o.id);
+                      toast.success("Asset removed");
+                    }}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
                 </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
-      </div>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
 
-      {editingLiability && (
-        <AddLiabilityDialog
-          trigger={null}
-          editLiability={editingLiability}
-          open={!!editingLiability}
-          onOpenChange={(v) => !v && setEditingLiability(null)}
-        />
-      )}
       {editingAsset && (
         <AddOtherAssetDialog
           trigger={null}

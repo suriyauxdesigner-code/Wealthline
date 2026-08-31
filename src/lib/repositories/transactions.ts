@@ -5,6 +5,7 @@ interface TransactionRow {
   id: string;
   account_id: string;
   to_account_id: string | null;
+  liability_id: string | null;
   type: Transaction["type"];
   amount: number;
   category_id: string | null;
@@ -17,7 +18,7 @@ interface TransactionRow {
 }
 
 const COLUMNS =
-  "id, account_id, to_account_id, type, amount, category_id, merchant, date, notes, tags, recurring_id, attachment";
+  "id, account_id, to_account_id, liability_id, type, amount, category_id, merchant, date, notes, tags, recurring_id, attachment";
 
 function mapTransaction(row: TransactionRow): Transaction {
   return {
@@ -28,6 +29,7 @@ function mapTransaction(row: TransactionRow): Transaction {
     categoryId: row.category_id ?? "",
     accountId: row.account_id,
     toAccountId: row.to_account_id ?? undefined,
+    liabilityId: row.liability_id ?? undefined,
     date: row.date,
     notes: row.notes ?? undefined,
     tags: row.tags ?? undefined,
@@ -50,6 +52,7 @@ export async function createTransaction(input: Omit<Transaction, "id">): Promise
     .insert({
       account_id: input.accountId,
       to_account_id: input.toAccountId ?? null,
+      liability_id: input.liabilityId ?? null,
       type: input.type,
       amount: input.amount,
       category_id: input.categoryId || null,
@@ -71,6 +74,7 @@ export async function updateTransaction(id: string, patch: Partial<Transaction>)
   const update: Record<string, unknown> = {};
   if (patch.accountId !== undefined) update.account_id = patch.accountId;
   if (patch.toAccountId !== undefined) update.to_account_id = patch.toAccountId ?? null;
+  if (patch.liabilityId !== undefined) update.liability_id = patch.liabilityId ?? null;
   if (patch.type !== undefined) update.type = patch.type;
   if (patch.amount !== undefined) update.amount = patch.amount;
   if (patch.categoryId !== undefined) update.category_id = patch.categoryId || null;
@@ -86,14 +90,18 @@ export async function updateTransaction(id: string, patch: Partial<Transaction>)
   return mapTransaction(data);
 }
 
-export async function deleteTransaction(id: string): Promise<void> {
+// Returns the deleted row so callers can reverse any side effect it had
+// (e.g. a debt payment) before it's gone.
+export async function deleteTransaction(id: string): Promise<Transaction> {
   const supabase = createClient();
-  const { error } = await supabase.from("transactions").delete().eq("id", id);
+  const { data, error } = await supabase.from("transactions").delete().eq("id", id).select(COLUMNS).single();
   if (error) throw new Error(error.message);
+  return mapTransaction(data);
 }
 
-export async function deleteTransactions(ids: string[]): Promise<void> {
+export async function deleteTransactions(ids: string[]): Promise<Transaction[]> {
   const supabase = createClient();
-  const { error } = await supabase.from("transactions").delete().in("id", ids);
+  const { data, error } = await supabase.from("transactions").delete().in("id", ids).select(COLUMNS);
   if (error) throw new Error(error.message);
+  return (data ?? []).map(mapTransaction);
 }

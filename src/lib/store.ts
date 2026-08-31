@@ -105,7 +105,26 @@ interface AppState {
 let initPromise: Promise<void> | null = null;
 let fireProfileSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
-export const useAppStore = create<AppState>((set, get) => ({
+export const useAppStore = create<AppState>((set, get) => {
+  // A transaction linked to a debt (liabilityId set) always represents a
+  // payment — its amount reduces that debt's outstanding balance. Positive
+  // delta increases outstanding (reversing a payment being edited/deleted),
+  // negative delta decreases it (applying a new or changed payment).
+  async function adjustLiabilityOutstanding(liabilityId: string | undefined, delta: number) {
+    if (!liabilityId || delta === 0) return;
+    const liability = get().liabilities.find((l) => l.id === liabilityId);
+    if (!liability) return;
+    try {
+      const updated = await liabilitiesRepo.updateLiability(liabilityId, {
+        outstanding: Math.max(0, liability.outstanding + delta),
+      });
+      set((state) => ({ liabilities: state.liabilities.map((l) => (l.id === liabilityId ? updated : l)) }));
+    } catch (err) {
+      toast.error(errorMessage(err, "Failed to update debt balance"));
+    }
+  }
+
+  return {
   accounts: [],
   transactions: [],
   categories: [],
@@ -194,6 +213,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
         ),
       }));
+      await adjustLiabilityOutstanding(created.liabilityId, -created.amount);
     } catch (err) {
       toast.error(errorMessage(err, "Failed to add transaction"));
     }
@@ -201,8 +221,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   updateTransaction: async (id, patch) => {
     try {
+      const before = get().transactions.find((t) => t.id === id);
       const updated = await transactionsRepo.updateTransaction(id, patch);
       set((state) => ({ transactions: state.transactions.map((t) => (t.id === id ? updated : t)) }));
+      // Reverse the old debt effect (if any), then apply the new one — this
+      // correctly handles the amount changing, the linked debt changing, or
+      // the transaction being linked/unlinked from a debt.
+      if (before?.liabilityId) await adjustLiabilityOutstanding(before.liabilityId, before.amount);
+      await adjustLiabilityOutstanding(updated.liabilityId, -updated.amount);
     } catch (err) {
       toast.error(errorMessage(err, "Failed to update transaction"));
     }
@@ -210,8 +236,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   deleteTransaction: async (id) => {
     try {
-      await transactionsRepo.deleteTransaction(id);
+      const deleted = await transactionsRepo.deleteTransaction(id);
       set((state) => ({ transactions: state.transactions.filter((t) => t.id !== id) }));
+      await adjustLiabilityOutstanding(deleted.liabilityId, deleted.amount);
     } catch (err) {
       toast.error(errorMessage(err, "Failed to delete transaction"));
     }
@@ -219,8 +246,16 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   deleteTransactions: async (ids) => {
     try {
-      await transactionsRepo.deleteTransactions(ids);
+      const deleted = await transactionsRepo.deleteTransactions(ids);
       set((state) => ({ transactions: state.transactions.filter((t) => !ids.includes(t.id)) }));
+      const reversalsByLiability = new Map<string, number>();
+      for (const t of deleted) {
+        if (!t.liabilityId) continue;
+        reversalsByLiability.set(t.liabilityId, (reversalsByLiability.get(t.liabilityId) ?? 0) + t.amount);
+      }
+      for (const [liabilityId, amount] of reversalsByLiability) {
+        await adjustLiabilityOutstanding(liabilityId, amount);
+      }
     } catch (err) {
       toast.error(errorMessage(err, "Failed to delete transactions"));
     }
@@ -406,4 +441,5 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     }, 800);
   },
-}));
+  };
+});

@@ -68,6 +68,7 @@ export interface Transaction {
   categoryId: string;
   accountId: string;
   toAccountId?: string; // for transfers / investment moves
+  liabilityId?: string; // when set, this transaction is a payment that reduces that debt's outstanding balance
   date: string; // ISO date
   notes?: string;
   tags?: string[];

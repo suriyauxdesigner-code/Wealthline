@@ -62,6 +62,7 @@ export function AddTransactionDialog({
 
   const accounts = useAppStore((s) => s.accounts);
   const categories = useAppStore((s) => s.categories);
+  const liabilities = useAppStore((s) => s.liabilities);
   const addTransaction = useAppStore((s) => s.addTransaction);
   const updateTransaction = useAppStore((s) => s.updateTransaction);
 
@@ -71,10 +72,13 @@ export function AddTransactionDialog({
   const [categoryId, setCategoryId] = React.useState(editTransaction?.categoryId ?? "");
   const [accountId, setAccountId] = React.useState(editTransaction?.accountId ?? accounts[0]?.id ?? "");
   const [toAccountId, setToAccountId] = React.useState(editTransaction?.toAccountId ?? "");
+  const [liabilityId, setLiabilityId] = React.useState(editTransaction?.liabilityId ?? "");
   const [date, setDate] = React.useState<Date>(editTransaction ? new Date(editTransaction.date) : new Date());
   const [notes, setNotes] = React.useState(editTransaction?.notes ?? "");
   const [tags, setTags] = React.useState(editTransaction?.tags?.join(", ") ?? "");
   const [recurring, setRecurring] = React.useState(false);
+
+  const showDebtField = (type === "expense" || type === "transfer") && liabilities.length > 0;
 
   const relevantCategories = categories.filter((c) => c.kind === TYPE_TO_CATEGORY_KIND[type]);
 
@@ -86,6 +90,7 @@ export function AddTransactionDialog({
     setCategoryId("");
     setAccountId(accounts[0]?.id ?? "");
     setToAccountId("");
+    setLiabilityId("");
     setDate(new Date());
     setNotes("");
     setTags("");
@@ -105,6 +110,7 @@ export function AddTransactionDialog({
       categoryId: categoryId || fallbackCategory,
       accountId,
       toAccountId: toAccountId || undefined,
+      liabilityId: showDebtField ? liabilityId || undefined : undefined,
       date: date.toISOString().slice(0, 10),
       notes: notes || undefined,
       tags: tags
@@ -240,6 +246,30 @@ export function AddTransactionDialog({
                       ))}
                   </SelectContent>
                 </Select>
+              </div>
+            )}
+
+            {showDebtField && (
+              <div className="col-span-2 space-y-1.5">
+                <Label>Pay toward a debt (optional)</Label>
+                <Select value={liabilityId || "none"} onValueChange={(v) => setLiabilityId(v === "none" ? "" : v)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="None" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {liabilities.map((l) => (
+                      <SelectItem key={l.id} value={l.id}>
+                        {l.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {liabilityId && (
+                  <p className="text-xs text-muted-foreground">
+                    This amount will reduce the outstanding balance on that debt.
+                  </p>
+                )}
               </div>
             )}
 
