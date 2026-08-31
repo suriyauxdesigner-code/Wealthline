@@ -97,6 +97,11 @@ interface AppState {
     investmentId: string,
     input: Omit<InvestmentTransaction, "id" | "investmentId" | "amount">
   ) => Promise<void>;
+  updateInvestmentTransactionEntry: (
+    investmentId: string,
+    transactionId: string,
+    patch: { type: InvestmentTransaction["type"]; quantity: number; price: number; date: string }
+  ) => Promise<void>;
   deleteInvestmentTransactionEntry: (investmentId: string, transactionId: string) => Promise<void>;
   // Used by Add Transaction's Investment tab to tie a logged Buy/Sell to a
   // specific unit-based holding, keeping it in the same replay-based ledger
@@ -511,6 +516,15 @@ export const useAppStore = create<AppState>((set, get) => {
       await recomputeHoldingFromTransactions(investmentId, input.price);
     } catch (err) {
       toast.error(errorMessage(err, "Failed to log transaction"));
+    }
+  },
+
+  updateInvestmentTransactionEntry: async (investmentId, transactionId, patch) => {
+    try {
+      await investmentTransactionsRepo.updateInvestmentTransaction(transactionId, patch);
+      await recomputeHoldingFromTransactions(investmentId, patch.price);
+    } catch (err) {
+      toast.error(errorMessage(err, "Failed to update transaction"));
     }
   },
 

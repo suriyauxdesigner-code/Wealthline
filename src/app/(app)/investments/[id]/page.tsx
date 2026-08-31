@@ -46,6 +46,7 @@ export default function InvestmentDetailPage({ params }: { params: Promise<{ id:
   const investment = investments.find((i) => i.id === id);
   const [transactions, setTransactions] = React.useState<InvestmentTransaction[] | null>(null);
   const [editing, setEditing] = React.useState(false);
+  const [editingTx, setEditingTx] = React.useState<InvestmentTransaction | null>(null);
 
   const refetchTransactions = React.useCallback(() => {
     investmentTransactionsRepo.listInvestmentTransactions(id).then(setTransactions);
@@ -226,14 +227,24 @@ export default function InvestmentDetailPage({ params }: { params: Promise<{ id:
                         {formatINR(tx.amount, { decimals: 2 })}
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-7 text-muted-foreground hover:text-negative"
-                          onClick={() => handleDeleteTransaction(tx.id)}
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
+                        <div className="flex items-center gap-0.5">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-7 text-muted-foreground"
+                            onClick={() => setEditingTx(tx)}
+                          >
+                            <Pencil className="size-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-7 text-muted-foreground hover:text-negative"
+                            onClick={() => handleDeleteTransaction(tx.id)}
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -255,6 +266,17 @@ export default function InvestmentDetailPage({ params }: { params: Promise<{ id:
           editInvestment={investment}
           open={editing}
           onOpenChange={setEditing}
+        />
+      )}
+
+      {editingTx && (
+        <LogInvestmentTransactionDialog
+          investment={investment}
+          trigger={null}
+          editEntry={editingTx}
+          open={!!editingTx}
+          onOpenChange={(v) => !v && setEditingTx(null)}
+          onLogged={refetchTransactions}
         />
       )}
     </div>

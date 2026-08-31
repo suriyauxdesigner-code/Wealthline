@@ -20,7 +20,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DatePicker } from "@/components/ui/date-picker";
 import { useAppStore } from "@/lib/store";
 import { formatINR } from "@/lib/calculations";
-import type { Investment, InvestmentTransactionType } from "@/lib/types";
+import type { Investment, InvestmentTransaction, InvestmentTransactionType } from "@/lib/types";
 
 const TYPE_LABEL: Record<InvestmentTransactionType, string> = {
   buy: "Buy",
@@ -33,7 +33,7 @@ interface LogInvestmentTransactionDialogProps {
   trigger?: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  /** Called after a transaction is successfully logged — use to refetch the holding's history. */
+  /** Called after a transaction is successfully logged/updated — use to refetch the holding's history. */
   onLogged?: () => void;
   /**
    * Pre-fills the Buy fields with an existing quantity/avg cost that has no
@@ -43,6 +43,8 @@ interface LogInvestmentTransactionDialogProps {
    * re-typing numbers they already entered.
    */
   openingBalance?: { quantity: number; price: number };
+  /** When set, the dialog edits this logged transaction instead of creating one. */
+  editEntry?: InvestmentTransaction;
 }
 
 export function LogInvestmentTransactionDialog({
@@ -52,20 +54,31 @@ export function LogInvestmentTransactionDialog({
   onOpenChange,
   onLogged,
   openingBalance,
+  editEntry,
 }: LogInvestmentTransactionDialogProps) {
+  const isEdit = !!editEntry;
   const [openState, setOpenState] = React.useState(false);
   const open = openProp ?? openState;
   const setOpen = onOpenChange ?? setOpenState;
 
   const logInvestmentTransaction = useAppStore((s) => s.logInvestmentTransaction);
+  const updateInvestmentTransactionEntry = useAppStore((s) => s.updateInvestmentTransactionEntry);
 
-  const [type, setType] = React.useState<InvestmentTransactionType>("buy");
-  const [quantity, setQuantity] = React.useState(openingBalance ? String(openingBalance.quantity) : "");
-  const [price, setPrice] = React.useState(
-    openingBalance ? String(openingBalance.price) : investment.currentPrice ? String(investment.currentPrice) : ""
+  const [type, setType] = React.useState<InvestmentTransactionType>(editEntry?.type ?? "buy");
+  const [quantity, setQuantity] = React.useState(
+    editEntry ? String(editEntry.quantity) : openingBalance ? String(openingBalance.quantity) : ""
   );
-  const [amount, setAmount] = React.useState("");
-  const [date, setDate] = React.useState<Date>(new Date());
+  const [price, setPrice] = React.useState(
+    editEntry
+      ? String(editEntry.price)
+      : openingBalance
+        ? String(openingBalance.price)
+        : investment.currentPrice
+          ? String(investment.currentPrice)
+          : ""
+  );
+  const [amount, setAmount] = React.useState(editEntry?.type === "dividend" ? String(editEntry.price) : "");
+  const [date, setDate] = React.useState<Date>(editEntry ? new Date(editEntry.date) : new Date());
   const [submitting, setSubmitting] = React.useState(false);
 
   const isDividend = type === "dividend";
@@ -74,6 +87,7 @@ export function LogInvestmentTransactionDialog({
   const value = numericQuantity && numericPrice ? numericQuantity * numericPrice : 0;
 
   function reset() {
+    if (isEdit) return;
     setType("buy");
     setQuantity(openingBalance ? String(openingBalance.quantity) : "");
     setPrice(openingBalance ? String(openingBalance.price) : investment.currentPrice ? String(investment.currentPrice) : "");
@@ -90,8 +104,13 @@ export function LogInvestmentTransactionDialog({
 
     setSubmitting(true);
     try {
-      await logInvestmentTransaction(investment.id, input);
-      toast.success(`${TYPE_LABEL[type]} logged`, { description: investment.name });
+      if (isEdit) {
+        await updateInvestmentTransactionEntry(investment.id, editEntry!.id, input);
+        toast.success(`${TYPE_LABEL[type]} updated`, { description: investment.name });
+      } else {
+        await logInvestmentTransaction(investment.id, input);
+        toast.success(`${TYPE_LABEL[type]} logged`, { description: investment.name });
+      }
       reset();
       setOpen(false);
       onLogged?.();
@@ -119,16 +138,18 @@ export function LogInvestmentTransactionDialog({
       )}
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Log transaction</DialogTitle>
+          <DialogTitle>{isEdit ? "Edit transaction" : "Log transaction"}</DialogTitle>
           <DialogDescription>
-            {openingBalance
-              ? "Confirm your existing position to start this holding's history."
-              : `Record a buy, sell, or dividend for ${investment.name}.`}
+            {isEdit
+              ? `Update this logged transaction for ${investment.name}.`
+              : openingBalance
+                ? "Confirm your existing position to start this holding's history."
+                : `Record a buy, sell, or dividend for ${investment.name}.`}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {openingBalance && (
+          {openingBalance && !isEdit && (
             <p className="rounded-md border border-border/70 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
               We found {openingBalance.quantity.toLocaleString("en-IN")} units at {formatINR(openingBalance.price, { decimals: 4 })} avg.
               cost with no logged history — pre-filled below as your opening Buy.
@@ -204,7 +225,7 @@ export function LogInvestmentTransactionDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={submitting}>
-              {submitting ? "Saving…" : "Log transaction"}
+              {submitting ? "Saving…" : isEdit ? "Save changes" : "Log transaction"}
             </Button>
           </DialogFooter>
         </form>
