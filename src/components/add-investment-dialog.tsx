@@ -1,9 +1,11 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -77,7 +79,7 @@ export function AddInvestmentDialog() {
       }}
     >
       <DialogTrigger asChild>
-        <Button size="sm" disabled={accounts.length === 0}>
+        <Button size="sm">
           <Plus /> Add investment
         </Button>
       </DialogTrigger>
@@ -86,6 +88,17 @@ export function AddInvestmentDialog() {
           <DialogTitle>Add investment</DialogTitle>
           <DialogDescription>Track a holding — stocks, funds, gold, or crypto.</DialogDescription>
         </DialogHeader>
+        {accounts.length === 0 ? (
+          <Alert>
+            <AlertDescription>
+              You need an account to hold this investment first.{" "}
+              <Link href="/accounts" className="font-medium text-foreground hover:underline">
+                Add an account
+              </Link>{" "}
+              (e.g. a brokerage or demat account), then come back here.
+            </AlertDescription>
+          </Alert>
+        ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="investment-name">Name</Label>
@@ -168,6 +181,7 @@ export function AddInvestmentDialog() {
             <Button type="submit">Add investment</Button>
           </DialogFooter>
         </form>
+        )}
       </DialogContent>
     </Dialog>
   );
