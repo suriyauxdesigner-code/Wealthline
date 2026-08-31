@@ -63,7 +63,9 @@ export function AccountCard({ account }: { account: Account }) {
           </div>
           <div>
             <p className="text-sm font-medium leading-tight">{account.name}</p>
-            <p className="text-xs text-muted-foreground">{account.institution}</p>
+            {account.institution && account.institution !== "—" && (
+              <p className="text-xs text-muted-foreground">{account.institution}</p>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-1.5">

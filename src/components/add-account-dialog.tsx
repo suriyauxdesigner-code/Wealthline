@@ -20,23 +20,36 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAppStore } from "@/lib/store";
 import type { Account, AccountGroup, AccountType } from "@/lib/types";
 
+// Accounts are places that hold money (a bank, a wallet, a card, a
+// brokerage/demat account) — asset classes like Mutual Fund, ETF, Gold, FD,
+// EPF, PPF, and Crypto belong to individual holdings (see Investments' own
+// "Asset class" field) rather than to the account itself, so they aren't
+// offered here.
 const TYPE_OPTIONS: { group: AccountGroup; type: AccountType; label: string }[] = [
   { group: "cash", type: "cash_wallet", label: "Cash wallet" },
   { group: "bank", type: "savings", label: "Savings account" },
   { group: "bank", type: "current", label: "Current account" },
   { group: "credit", type: "credit_card", label: "Credit card" },
-  { group: "investment", type: "brokerage", label: "Brokerage" },
-  { group: "investment", type: "mutual_fund", label: "Mutual fund" },
-  { group: "investment", type: "etf", label: "ETF" },
-  { group: "investment", type: "crypto", label: "Crypto" },
-  { group: "other", type: "epf", label: "EPF" },
-  { group: "other", type: "ppf", label: "PPF" },
-  { group: "other", type: "fd", label: "Fixed deposit" },
-  { group: "other", type: "gold", label: "Gold" },
+  { group: "investment", type: "brokerage", label: "Brokerage / demat account" },
 ];
 
-function typeIndexFor(group: AccountGroup, type: AccountType): string {
-  const i = TYPE_OPTIONS.findIndex((o) => o.group === group && o.type === type);
+// An account created before investment-instrument types were removed from
+// this list (e.g. an old "Gold" or "PPF" account) must keep showing and
+// saving its real type when edited — falling back to index 0 would silently
+// rewrite it to "Cash wallet" the next time someone hits Save.
+function typeOptionsFor(editAccount?: Account) {
+  if (editAccount && !TYPE_OPTIONS.some((o) => o.group === editAccount.group && o.type === editAccount.type)) {
+    const legacyLabel = editAccount.type
+      .split("_")
+      .map((w) => w[0].toUpperCase() + w.slice(1))
+      .join(" ");
+    return [...TYPE_OPTIONS, { group: editAccount.group, type: editAccount.type, label: legacyLabel }];
+  }
+  return TYPE_OPTIONS;
+}
+
+function typeIndexFor(options: typeof TYPE_OPTIONS, group: AccountGroup, type: AccountType): string {
+  const i = options.findIndex((o) => o.group === group && o.type === type);
   return String(i === -1 ? 0 : i);
 }
 
@@ -60,8 +73,9 @@ export function AddAccountDialog({ editAccount, trigger, open: openProp, onOpenC
   const [name, setName] = React.useState(editAccount?.name ?? "");
   const [institution, setInstitution] = React.useState(editAccount?.institution ?? "");
   const [balance, setBalance] = React.useState(editAccount ? String(editAccount.balance) : "");
+  const typeOptions = React.useMemo(() => typeOptionsFor(editAccount), [editAccount]);
   const [typeIndex, setTypeIndex] = React.useState(
-    editAccount ? typeIndexFor(editAccount.group, editAccount.type) : "0"
+    editAccount ? typeIndexFor(typeOptions, editAccount.group, editAccount.type) : "0"
   );
 
   function reset() {
@@ -75,10 +89,10 @@ export function AddAccountDialog({ editAccount, trigger, open: openProp, onOpenC
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name) return;
-    const option = TYPE_OPTIONS[Number(typeIndex)];
+    const option = typeOptions[Number(typeIndex)];
     const payload = {
       name,
-      institution: institution || "—",
+      institution: institution.trim(),
       balance: Number(balance) || 0,
       currency: "INR" as const,
       group: option.group,
@@ -125,7 +139,7 @@ export function AddAccountDialog({ editAccount, trigger, open: openProp, onOpenC
             <Select value={typeIndex} onValueChange={setTypeIndex}>
               <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {TYPE_OPTIONS.map((o, i) => (
+                {typeOptions.map((o, i) => (
                   <SelectItem key={i} value={String(i)}>{o.label}</SelectItem>
                 ))}
               </SelectContent>
@@ -133,7 +147,7 @@ export function AddAccountDialog({ editAccount, trigger, open: openProp, onOpenC
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Institution</Label>
+              <Label>Institution (optional)</Label>
               <Input value={institution} onChange={(e) => setInstitution(e.target.value)} placeholder="e.g. ICICI Bank" />
             </div>
             <div className="space-y-1.5">
