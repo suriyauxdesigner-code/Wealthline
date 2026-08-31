@@ -28,7 +28,7 @@ function lastMonthKeys(count: number): string[] {
 }
 
 export default function ReportsPage() {
-  const { transactions, budgets, fireProfile, accounts } = useAppStore();
+  const { transactions, budgets, categories, fireProfile, accounts } = useAppStore();
   const months = lastMonthKeys(12);
 
   const monthlyRows = months.map((m) => {
@@ -65,6 +65,7 @@ export default function ReportsPage() {
 
   const insights = generateInsights({
     transactions,
+    categories,
     budgets,
     netWorthHistory,
     fireProfile,

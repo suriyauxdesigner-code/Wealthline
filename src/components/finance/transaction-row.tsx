@@ -1,8 +1,18 @@
-import { getAccount, getCategory } from "@/lib/mock-data";
+"use client";
+
 import { formatINR } from "@/lib/calculations";
+import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import type { Transaction } from "@/lib/types";
+import type { Category, Transaction } from "@/lib/types";
 import { resolveIcon } from "./icon-map";
+
+const FALLBACK_CATEGORY: Category = {
+  id: "",
+  name: "Other",
+  kind: "expense",
+  icon: "MoreHorizontal",
+  color: "chart-9",
+};
 
 function formatRelativeDate(dateIso: string): string {
   const date = new Date(dateIso + "T00:00:00");
@@ -17,8 +27,10 @@ function formatRelativeDate(dateIso: string): string {
 }
 
 export function TransactionRow({ transaction, onClick }: { transaction: Transaction; onClick?: () => void }) {
-  const category = getCategory(transaction.categoryId);
-  const account = getAccount(transaction.accountId);
+  const categories = useAppStore((s) => s.categories);
+  const accounts = useAppStore((s) => s.accounts);
+  const category = categories.find((c) => c.id === transaction.categoryId) ?? FALLBACK_CATEGORY;
+  const account = accounts.find((a) => a.id === transaction.accountId);
   const Icon = resolveIcon(category.icon);
 
   const isPositive = transaction.type === "income";

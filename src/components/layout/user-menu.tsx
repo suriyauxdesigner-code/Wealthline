@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import { ChevronsUpDown, LogOut, Settings, User } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -13,21 +12,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { displayName as resolveDisplayName, useAuthUser } from "@/hooks/use-auth-user";
 import { createClient } from "@/lib/supabase/client";
 
 export function UserMenu() {
   const router = useRouter();
-  const [displayName, setDisplayName] = React.useState("Account");
-
-  React.useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      const authUser = data.user;
-      if (!authUser) return;
-      const name = (authUser.user_metadata?.name as string | undefined) || authUser.email || "Account";
-      setDisplayName(name);
-    });
-  }, []);
+  const authUser = useAuthUser();
+  const displayName = resolveDisplayName(authUser);
 
   const initials = displayName
     .split(" ")

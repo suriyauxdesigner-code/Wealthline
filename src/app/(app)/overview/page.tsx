@@ -16,8 +16,9 @@ import { TransactionRow } from "@/components/finance/transaction-row";
 import { InsightCard } from "@/components/finance/insight-card";
 import { EmptyState } from "@/components/finance/empty-state";
 import { DateRangeSelect, type RangeOption } from "@/components/finance/date-range-select";
+import { displayName, useAuthUser } from "@/hooks/use-auth-user";
 import { useAppStore } from "@/lib/store";
-import { netWorthHistory, portfolioHistory, user } from "@/lib/mock-data";
+import { netWorthHistory, portfolioHistory } from "@/lib/mock-data";
 import { calcNetWorth, calcSavingsRate, formatINR } from "@/lib/calculations";
 import { cashFlowForMonth, monthLabel, previousMonthKeys, spendByCategory } from "@/lib/selectors";
 import { generateInsights } from "@/lib/insights";
@@ -32,7 +33,8 @@ function greeting(): string {
 }
 
 export default function OverviewPage() {
-  const { transactions, accounts, budgets, fireProfile } = useAppStore();
+  const { transactions, accounts, categories, budgets, fireProfile } = useAppStore();
+  const authUser = useAuthUser();
   const [range, setRange] = React.useState<RangeOption>("this-month");
 
   const monthKey = range === "last-month" ? previousMonthKeys(CURRENT_MONTH, 1)[0] : CURRENT_MONTH;
@@ -56,7 +58,7 @@ export default function OverviewPage() {
   const prevPortfolio = portfolioHistory[portfolioHistory.length - 2];
   const investmentsChangePct = ((investmentsTotal - prevPortfolio.value) / prevPortfolio.value) * 100;
 
-  const spend = spendByCategory(transactions, monthKey);
+  const spend = spendByCategory(transactions, categories, monthKey);
   const recentTransactions = [...transactions]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 6);
@@ -71,6 +73,7 @@ export default function OverviewPage() {
 
   const insights = generateInsights({
     transactions,
+    categories,
     budgets,
     netWorthHistory,
     fireProfile,
@@ -83,7 +86,7 @@ export default function OverviewPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">
-            {greeting()}, {user.name}
+            {greeting()}, {displayName(authUser).split(" ")[0]}
           </h1>
           <p className="text-sm text-muted-foreground">Here&rsquo;s how your money is doing this month.</p>
         </div>

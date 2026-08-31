@@ -85,15 +85,18 @@ with
 create policy "delete own categories" on public.categories for delete using (auth.uid () = user_id);
 
 -- ---------- accounts ----------
--- `group`, `last4`, `is_liability_account`, `color` extend the spec's listed
--- columns — the existing Account UI (account cards, icon lookup) needs them.
+-- `account_group`, `last4`, `is_liability_account`, `color` extend the spec's
+-- listed columns — the existing Account UI (account cards, icon lookup)
+-- needs them. Named `account_group` rather than the spec's `type`/`group`
+-- split's literal "group" — that's a reserved SQL word, awkward to quote in
+-- every PostgREST query string.
 
 create table public.accounts (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade default auth.uid(),
   name text not null,
-  "group" text not null check (
-    "group" in (
+  account_group text not null check (
+    account_group in (
       'cash',
       'bank',
       'credit',

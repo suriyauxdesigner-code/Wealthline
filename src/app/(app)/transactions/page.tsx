@@ -28,10 +28,9 @@ import {
 import { EmptyState } from "@/components/finance/empty-state";
 import { FilterBar } from "@/components/finance/filter-bar";
 import { resolveIcon } from "@/components/finance/icon-map";
-import { categories, getAccount, getCategory } from "@/lib/mock-data";
 import { useAppStore } from "@/lib/store";
 import { formatINR } from "@/lib/calculations";
-import type { Transaction, TransactionType } from "@/lib/types";
+import type { Category, Transaction, TransactionType } from "@/lib/types";
 import { ArrowLeftRight } from "lucide-react";
 import { toast } from "sonner";
 
@@ -44,8 +43,24 @@ const TYPE_BADGE: Record<TransactionType, "default" | "positive" | "secondary"> 
 
 const PAGE_SIZE = 12;
 
+const FALLBACK_CATEGORY: Category = {
+  id: "",
+  name: "Other",
+  kind: "expense",
+  icon: "MoreHorizontal",
+  color: "chart-9",
+};
+
 export default function TransactionsPage() {
-  const { transactions, accounts, deleteTransaction, deleteTransactions } = useAppStore();
+  const { transactions, accounts, categories, deleteTransaction, deleteTransactions } = useAppStore();
+
+  function getCategory(id: string): Category {
+    return categories.find((c) => c.id === id) ?? FALLBACK_CATEGORY;
+  }
+
+  function getAccount(id: string) {
+    return accounts.find((a) => a.id === id);
+  }
 
   const [search, setSearch] = React.useState("");
   const [type, setType] = React.useState<string>("all");

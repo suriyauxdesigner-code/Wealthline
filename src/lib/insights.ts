@@ -7,7 +7,7 @@
 // underlying signals (spend deltas, budget overage, net worth deltas, FIRE
 // sensitivity) stay the same deterministic functions.
 
-import type { Budget, FIREProfile, NetWorthSnapshot, Transaction } from "./types";
+import type { Budget, Category, FIREProfile, NetWorthSnapshot, Transaction } from "./types";
 import {
   budgetLinesForMonth,
   monthKeyOf,
@@ -20,21 +20,23 @@ import type { Insight } from "./types";
 
 export function generateInsights(params: {
   transactions: Transaction[];
+  categories: Category[];
   budgets: Budget[];
   netWorthHistory: NetWorthSnapshot[];
   fireProfile: FIREProfile;
   currentPortfolioValue: number;
   currentMonthKey: string;
 }): Insight[] {
-  const { transactions, budgets, netWorthHistory, fireProfile, currentPortfolioValue, currentMonthKey } = params;
+  const { transactions, categories, budgets, netWorthHistory, fireProfile, currentPortfolioValue, currentMonthKey } =
+    params;
   const insights: Insight[] = [];
 
   // 1. Category spend spike vs trailing 3-month average
   const priorMonths = previousMonthKeys(currentMonthKey, 3);
-  const currentSpend = spendByCategory(transactions, currentMonthKey);
+  const currentSpend = spendByCategory(transactions, categories, currentMonthKey);
   for (const entry of currentSpend.slice(0, 3)) {
     const priorTotals = priorMonths.map(
-      (m) => spendByCategory(transactions, m).find((s) => s.category.id === entry.category.id)?.total ?? 0
+      (m) => spendByCategory(transactions, categories, m).find((s) => s.category.id === entry.category.id)?.total ?? 0
     );
     const validPrior = priorTotals.filter((v) => v > 0);
     if (validPrior.length === 0) continue;
@@ -78,7 +80,7 @@ export function generateInsights(params: {
   }
 
   // 4. Budget overage
-  const budgetLines = budgetLinesForMonth(budgets, transactions, currentMonthKey);
+  const budgetLines = budgetLinesForMonth(budgets, transactions, categories, currentMonthKey);
   const overBudget = budgetLines.filter((b) => b.status === "over").sort((a, b) => b.spent - b.remaining - (a.spent - a.remaining));
   if (overBudget.length > 0) {
     const worst = overBudget[0];

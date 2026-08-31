@@ -21,7 +21,6 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Switch } from "@/components/ui/switch";
-import { categories } from "@/lib/mock-data";
 import { useAppStore } from "@/lib/store";
 import type { Transaction, TransactionType } from "@/lib/types";
 
@@ -62,6 +61,7 @@ export function AddTransactionDialog({
   const setOpen = onOpenChange ?? setOpenState;
 
   const accounts = useAppStore((s) => s.accounts);
+  const categories = useAppStore((s) => s.categories);
   const addTransaction = useAppStore((s) => s.addTransaction);
   const updateTransaction = useAppStore((s) => s.updateTransaction);
 
@@ -112,7 +112,7 @@ export function AddTransactionDialog({
     const numericAmount = Number(amount);
     if (!numericAmount || numericAmount <= 0 || !merchant || !accountId) return;
 
-    const fallbackCategory = relevantCategories[0]?.id ?? categories[0].id;
+    const fallbackCategory = relevantCategories[0]?.id ?? categories[0]?.id ?? "";
     const payload = {
       type,
       amount: numericAmount,

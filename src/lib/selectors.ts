@@ -2,9 +2,20 @@
 // components should read data through these rather than looping over
 // `transactions` directly, so aggregation logic lives in one place.
 
-import { getCategory } from "./mock-data";
 import type { Budget, Category, Transaction } from "./types";
 import { calcCashFlow, type CashFlowSummary } from "./calculations";
+
+const FALLBACK_CATEGORY: Category = {
+  id: "",
+  name: "Other",
+  kind: "expense",
+  icon: "MoreHorizontal",
+  color: "chart-9",
+};
+
+function resolveCategory(categories: Category[], id: string): Category {
+  return categories.find((c) => c.id === id) ?? FALLBACK_CATEGORY;
+}
 
 export function monthKeyOf(dateIso: string): string {
   return dateIso.slice(0, 7);
@@ -40,7 +51,7 @@ export interface CategorySpend {
   pctOfTotal: number;
 }
 
-export function spendByCategory(transactions: Transaction[], monthKey: string): CategorySpend[] {
+export function spendByCategory(transactions: Transaction[], categories: Category[], monthKey: string): CategorySpend[] {
   const monthTx = transactions.filter((t) => t.type === "expense" && isInMonth(t, monthKey));
   const totals = new Map<string, number>();
   for (const t of monthTx) {
@@ -49,7 +60,7 @@ export function spendByCategory(transactions: Transaction[], monthKey: string): 
   const grandTotal = monthTx.reduce((s, t) => s + t.amount, 0);
   return Array.from(totals.entries())
     .map(([categoryId, total]) => ({
-      category: getCategory(categoryId),
+      category: resolveCategory(categories, categoryId),
       total,
       pctOfTotal: grandTotal > 0 ? (total / grandTotal) * 100 : 0,
     }))
@@ -83,8 +94,13 @@ export function budgetStatusFor(pct: number): BudgetStatus {
   return "healthy";
 }
 
-export function budgetLinesForMonth(budgets: Budget[], transactions: Transaction[], monthKey: string): BudgetLine[] {
-  const spend = spendByCategory(transactions, monthKey);
+export function budgetLinesForMonth(
+  budgets: Budget[],
+  transactions: Transaction[],
+  categories: Category[],
+  monthKey: string
+): BudgetLine[] {
+  const spend = spendByCategory(transactions, categories, monthKey);
   const spendMap = new Map(spend.map((s) => [s.category.id, s.total]));
   return budgets
     .filter((b) => b.month === monthKey)
@@ -93,7 +109,7 @@ export function budgetLinesForMonth(budgets: Budget[], transactions: Transaction
       const pct = b.limit > 0 ? (spent / b.limit) * 100 : 0;
       return {
         budget: b,
-        category: getCategory(b.categoryId),
+        category: resolveCategory(categories, b.categoryId),
         spent,
         remaining: b.limit - spent,
         pct,

@@ -14,8 +14,8 @@ import { budgetLinesForMonth, previousMonthKeys, totalSpendForMonth } from "@/li
 const CURRENT_MONTH = "2026-08";
 
 export default function BudgetPage() {
-  const { budgets, transactions } = useAppStore();
-  const lines = budgetLinesForMonth(budgets, transactions, CURRENT_MONTH);
+  const { budgets, transactions, categories } = useAppStore();
+  const lines = budgetLinesForMonth(budgets, transactions, categories, CURRENT_MONTH);
 
   const totalBudget = lines.reduce((s, l) => s + l.budget.limit, 0);
   const totalSpent = lines.reduce((s, l) => s + l.spent, 0);
