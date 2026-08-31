@@ -6,12 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
-import { MetricCard } from "@/components/finance/metric-card";
+import { Progress } from "@/components/ui/progress";
 import { FireProjectionChart } from "@/components/finance/fire-projection-chart";
 import { FinancialHealthCard } from "@/components/finance/financial-health-card";
 import { useAppStore } from "@/lib/store";
 import { formatINR, formatPercent, projectFire, calcFinancialHealth } from "@/lib/calculations";
 import { cashFlowForMonth, totalSpendForMonth } from "@/lib/selectors";
+import { cn } from "@/lib/utils";
 
 const CURRENT_MONTH = "2026-08";
 
@@ -29,12 +30,14 @@ export default function FirePage() {
 
   const projection = React.useMemo(() => projectFire(fireProfile, investmentsTotal), [fireProfile, investmentsTotal]);
 
-  // Baseline (before any what-if change) held in a ref on first render, so
+  // Baseline (before any what-if change) captured once on first render, so
   // the "insight" comparison always reflects "vs when you opened this page".
-  const baselineRef = React.useRef(fireProfile.monthlyInvestment);
+  // Only the initializer is ever used — never reassigned — so this is a
+  // read-only useState rather than a ref accessed during render.
+  const [baselineMonthlyInvestment] = React.useState(fireProfile.monthlyInvestment);
   const baselineProjection = React.useMemo(
-    () => projectFire({ ...fireProfile, monthlyInvestment: baselineRef.current }, investmentsTotal),
-    [fireProfile, investmentsTotal]
+    () => projectFire({ ...fireProfile, monthlyInvestment: baselineMonthlyInvestment }, investmentsTotal),
+    [fireProfile, investmentsTotal, baselineMonthlyInvestment]
   );
 
   const monthlyExpenses = Math.round(fireProfile.annualExpenses / 12);
@@ -63,6 +66,12 @@ export default function FirePage() {
     diversification: "portfolio diversification",
   };
 
+  // A single, plain-language headline replaces the old flat row of six
+  // similarly-weighted numbers — everything else on the page supports this
+  // one sentence instead of competing with it.
+  const onTrack = projection.fireAge !== null && projection.fireAge <= fireProfile.targetAge;
+  const yearsGap = projection.fireAge !== null ? Math.abs(projection.fireAge - fireProfile.targetAge) : null;
+
   return (
     <div className="space-y-6">
       <div>
@@ -70,26 +79,170 @@ export default function FirePage() {
         <p className="text-sm text-muted-foreground">Financial Independence, Retire Early — plan and simulate your path</p>
       </div>
 
-      <Card className="py-5">
-        <CardContent className="grid grid-cols-2 gap-6 px-5 sm:grid-cols-3 lg:grid-cols-6 sm:px-6">
-          <MetricCard label="FIRE Number" value={formatINR(projection.fireNumberToday, { compact: true })} />
-          <MetricCard label="Current Corpus" value={formatINR(investmentsTotal, { compact: true })} />
-          <MetricCard label="FIRE Progress" value={formatPercent(projection.currentFirePercent, 1)} />
-          <MetricCard label="Est. FIRE Age" value={projection.fireAge ? String(projection.fireAge) : "—"} />
-          <MetricCard
-            label="Years Remaining"
-            value={projection.yearsRemaining !== null ? String(projection.yearsRemaining) : "—"}
-          />
-          <MetricCard label="Required SIP" value={formatINR(projection.requiredMonthlyInvestment, { compact: true })} />
+      {/* Inputs come first — every number below is derived from these. */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">Your inputs</CardTitle>
+          <CardDescription>Change anything below and every calculation on this page updates instantly.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div>
+            <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Simulate</p>
+            <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2">
+              <SimSlider
+                label="Monthly investment"
+                value={fireProfile.monthlyInvestment}
+                min={20000}
+                max={100000}
+                step={1000}
+                format={(v) => formatINR(v, { compact: true })}
+                onChange={(v) => updateFireProfile({ monthlyInvestment: v })}
+              />
+              <SimSlider
+                label="Expected annual return"
+                value={fireProfile.expectedReturn}
+                min={6}
+                max={14}
+                step={0.5}
+                format={(v) => `${v}%`}
+                onChange={(v) => updateFireProfile({ expectedReturn: v })}
+              />
+              <SimSlider
+                label="Target retirement age"
+                value={fireProfile.targetAge}
+                min={35}
+                max={60}
+                step={1}
+                format={(v) => String(v)}
+                onChange={(v) => updateFireProfile({ targetAge: v })}
+              />
+              <SimSlider
+                label="Monthly expenses (retirement)"
+                value={monthlyExpenses}
+                min={20000}
+                max={200000}
+                step={1000}
+                format={(v) => formatINR(v, { compact: true })}
+                onChange={(v) => updateFireProfile({ annualExpenses: v * 12 })}
+              />
+            </div>
+          </div>
+
+          <div className="border-t border-border/70 pt-6">
+            <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Other assumptions</p>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+              <AssumptionInput
+                label="Current age"
+                value={fireProfile.currentAge}
+                onChange={(v) => updateFireProfile({ currentAge: v })}
+              />
+              <AssumptionInput
+                label="Life expectancy"
+                value={fireProfile.lifeExpectancy}
+                onChange={(v) => updateFireProfile({ lifeExpectancy: v })}
+              />
+              <AssumptionInput
+                label="Inflation %"
+                value={fireProfile.inflation}
+                onChange={(v) => updateFireProfile({ inflation: v })}
+              />
+              <AssumptionInput
+                label="Income growth %"
+                value={fireProfile.incomeGrowth}
+                onChange={(v) => updateFireProfile({ incomeGrowth: v })}
+              />
+              <AssumptionInput
+                label="Withdrawal rate %"
+                value={fireProfile.withdrawalRate}
+                onChange={(v) => updateFireProfile({ withdrawalRate: v })}
+              />
+            </div>
+          </div>
         </CardContent>
       </Card>
+
+      {/* One clear headline instead of a flat grid of similarly-weighted numbers. */}
+      <Card className={cn("py-5", onTrack ? "border-positive/30 bg-positive/5" : "border-warning/30 bg-warning/5")}>
+        <CardContent className="flex flex-col gap-1 px-5 sm:px-6">
+          {projection.fireAge === null ? (
+            <p className="text-sm font-medium">
+              At this pace, you won&apos;t reach financial independence within the projection window — try increasing
+              your monthly investment above, or lowering your planned retirement expenses.
+            </p>
+          ) : onTrack ? (
+            <p className="text-sm font-medium">
+              You&apos;re on track — projected to reach financial independence at age{" "}
+              <span className="text-base font-semibold">{projection.fireAge}</span>, in{" "}
+              <span className="font-semibold">{projection.yearsRemaining}</span> years
+              {yearsGap ? (
+                <>
+                  {" "}
+                  — <span className="font-semibold">{yearsGap}</span> year{yearsGap === 1 ? "" : "s"} ahead of your
+                  target age of {fireProfile.targetAge}.
+                </>
+              ) : (
+                "."
+              )}
+            </p>
+          ) : (
+            <p className="text-sm font-medium">
+              At this pace, you&apos;ll reach financial independence at age{" "}
+              <span className="text-base font-semibold">{projection.fireAge}</span> — {yearsGap} year
+              {yearsGap === 1 ? "" : "s"} later than your target age of {fireProfile.targetAge}. Increasing your
+              monthly investment (below) is the fastest way to close that gap.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Supporting numbers, each captioned so it's clear what it means and
+          how it differs from the others — not just a bare label + figure. */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card className="gap-2 py-4">
+          <CardContent className="space-y-1 px-5">
+            <p className="text-xs font-medium text-muted-foreground">Your FIRE number</p>
+            <p className="text-2xl font-semibold tabular-nums tracking-tight">
+              {formatINR(projection.fireNumberToday, { compact: true })}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              What you&apos;d need to retire today, at today&apos;s expenses and withdrawal rate.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="gap-2 py-4">
+          <CardContent className="space-y-2 px-5">
+            <p className="text-xs font-medium text-muted-foreground">Current investments</p>
+            <p className="text-2xl font-semibold tabular-nums tracking-tight">
+              {formatINR(investmentsTotal, { compact: true })}
+            </p>
+            <Progress value={projection.currentFirePercent} />
+            <p className="text-xs text-muted-foreground">
+              {formatPercent(projection.currentFirePercent, 1)} of your FIRE number, from investment accounts.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="gap-2 py-4">
+          <CardContent className="space-y-1 px-5">
+            <p className="text-xs font-medium text-muted-foreground">Required monthly SIP</p>
+            <p className="text-2xl font-semibold tabular-nums tracking-tight">
+              {formatINR(projection.requiredMonthlyInvestment, { compact: true })}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              To retire at exactly your target age of {fireProfile.targetAge} — a different question from &quot;at my
+              current pace&quot; above.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>
           <CardTitle className="text-sm font-medium">FIRE projection</CardTitle>
           <CardDescription>
-            Projected portfolio value by age vs. your inflation-adjusted FIRE target
-            {projection.fireAge && ` — on track for FIRE at age ${projection.fireAge}`}.
+            Your projected portfolio vs. the FIRE target — the target line rises with inflation each year, so it&apos;s
+            higher than &quot;Your FIRE number&quot; above (which is in today&apos;s rupees).
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -97,104 +250,23 @@ export default function FirePage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">What-if simulator</CardTitle>
-            <CardDescription>Adjust assumptions and see the impact instantly.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <SimSlider
-              label="Monthly investment"
-              value={fireProfile.monthlyInvestment}
-              min={20000}
-              max={100000}
-              step={1000}
-              format={(v) => formatINR(v, { compact: true })}
-              onChange={(v) => updateFireProfile({ monthlyInvestment: v })}
-            />
-            <SimSlider
-              label="Expected annual return"
-              value={fireProfile.expectedReturn}
-              min={6}
-              max={14}
-              step={0.5}
-              format={(v) => `${v}%`}
-              onChange={(v) => updateFireProfile({ expectedReturn: v })}
-            />
-            <SimSlider
-              label="Target retirement age"
-              value={fireProfile.targetAge}
-              min={35}
-              max={60}
-              step={1}
-              format={(v) => String(v)}
-              onChange={(v) => updateFireProfile({ targetAge: v })}
-            />
-            <SimSlider
-              label="Monthly expenses (retirement)"
-              value={monthlyExpenses}
-              min={20000}
-              max={200000}
-              step={1000}
-              format={(v) => formatINR(v, { compact: true })}
-              onChange={(v) => updateFireProfile({ annualExpenses: v * 12 })}
-            />
+      {baselineProjection.fireAge && projection.fireAge && baselineProjection.fireAge !== projection.fireAge && (
+        <p className="rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-foreground">
+          Your changes above move your estimated FIRE age from{" "}
+          <span className="font-medium">{baselineProjection.fireAge}</span> to{" "}
+          <span className="font-medium">{projection.fireAge}</span> — roughly{" "}
+          <span className="font-medium">
+            {Math.abs(baselineProjection.fireAge - projection.fireAge)} year
+            {Math.abs(baselineProjection.fireAge - projection.fireAge) === 1 ? "" : "s"}
+          </span>{" "}
+          {projection.fireAge < baselineProjection.fireAge ? "sooner" : "later"} than when you opened this page.
+        </p>
+      )}
 
-            {baselineProjection.fireAge && projection.fireAge && baselineProjection.fireAge !== projection.fireAge && (
-              <p className="rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-foreground">
-                This change moves your estimated FIRE age from{" "}
-                <span className="font-medium">{baselineProjection.fireAge}</span> to{" "}
-                <span className="font-medium">{projection.fireAge}</span> — roughly{" "}
-                <span className="font-medium">
-                  {Math.abs(baselineProjection.fireAge - projection.fireAge)} year
-                  {Math.abs(baselineProjection.fireAge - projection.fireAge) === 1 ? "" : "s"}
-                </span>{" "}
-                {projection.fireAge < baselineProjection.fireAge ? "sooner" : "later"}.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        <FinancialHealthCard
-          result={health}
-          insight={`Your ${weakestLabel[health.weakestFactor]} is below your recommended target — that's the highest-leverage place to focus next.`}
-        />
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-medium">Assumptions</CardTitle>
-          <CardDescription>Every FIRE calculation is driven by these inputs — change them any time.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <AssumptionInput
-            label="Current age"
-            value={fireProfile.currentAge}
-            onChange={(v) => updateFireProfile({ currentAge: v })}
-          />
-          <AssumptionInput
-            label="Life expectancy"
-            value={fireProfile.lifeExpectancy}
-            onChange={(v) => updateFireProfile({ lifeExpectancy: v })}
-          />
-          <AssumptionInput
-            label="Inflation %"
-            value={fireProfile.inflation}
-            onChange={(v) => updateFireProfile({ inflation: v })}
-          />
-          <AssumptionInput
-            label="Income growth %"
-            value={fireProfile.incomeGrowth}
-            onChange={(v) => updateFireProfile({ incomeGrowth: v })}
-          />
-          <AssumptionInput
-            label="Withdrawal rate %"
-            value={fireProfile.withdrawalRate}
-            onChange={(v) => updateFireProfile({ withdrawalRate: v })}
-          />
-        </CardContent>
-      </Card>
+      <FinancialHealthCard
+        result={health}
+        insight={`Your ${weakestLabel[health.weakestFactor]} is below your recommended target — that's the highest-leverage place to focus next.`}
+      />
     </div>
   );
 }
