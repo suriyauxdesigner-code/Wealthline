@@ -1,26 +1,24 @@
 "use client";
 
-// Client-side app state. `accounts`, `transactions`, `budgets`, and `goals`
-// are now Supabase-backed (see src/lib/repositories/) — every mutation below
-// calls a repository function and updates local state from its result, so
-// every existing caller (dialogs, pages) keeps working unchanged even though
-// these actions are now async. `liabilities`, `otherAssets`, `recurring`,
-// and `fireProfile` are still seeded mock data pending a later migration
-// phase.
+// Client-side app state. `accounts`, `transactions`, `budgets`, `goals`,
+// `investments`, `liabilities`, and `otherAssets` are now Supabase-backed
+// (see src/lib/repositories/) — every mutation below calls a repository
+// function and updates local state from its result, so every existing
+// caller (dialogs, pages) keeps working unchanged even though these actions
+// are now async. `recurring` and `fireProfile` are still seeded mock data
+// pending a later migration phase.
 
 import { create } from "zustand";
 import { toast } from "sonner";
 
-import {
-  fireProfile as seedFireProfile,
-  liabilities as seedLiabilities,
-  otherAssets as seedOtherAssets,
-  recurringTransactions as seedRecurring,
-} from "./mock-data";
+import { fireProfile as seedFireProfile, recurringTransactions as seedRecurring } from "./mock-data";
 import * as accountsRepo from "./repositories/accounts";
 import * as budgetsRepo from "./repositories/budgets";
 import * as categoriesRepo from "./repositories/categories";
 import * as goalsRepo from "./repositories/goals";
+import * as investmentsRepo from "./repositories/investments";
+import * as liabilitiesRepo from "./repositories/liabilities";
+import * as otherAssetsRepo from "./repositories/other-assets";
 import * as transactionsRepo from "./repositories/transactions";
 import type {
   Account,
@@ -28,6 +26,7 @@ import type {
   Category,
   FIREProfile,
   Goal,
+  Investment,
   Liability,
   OtherAsset,
   RecurringTransaction,
@@ -44,6 +43,7 @@ interface AppState {
   categories: Category[];
   budgets: Budget[];
   goals: Goal[];
+  investments: Investment[];
   liabilities: Liability[];
   otherAssets: OtherAsset[];
   recurring: RecurringTransaction[];
@@ -70,6 +70,18 @@ interface AppState {
   updateGoal: (id: string, patch: Partial<Goal>) => Promise<void>;
   deleteGoal: (id: string) => Promise<void>;
 
+  addInvestment: (i: Omit<Investment, "id">) => Promise<void>;
+  updateInvestment: (id: string, patch: Partial<Investment>) => Promise<void>;
+  deleteInvestment: (id: string) => Promise<void>;
+
+  addLiability: (l: Omit<Liability, "id">) => Promise<void>;
+  updateLiability: (id: string, patch: Partial<Liability>) => Promise<void>;
+  deleteLiability: (id: string) => Promise<void>;
+
+  addOtherAsset: (o: Omit<OtherAsset, "id">) => Promise<void>;
+  updateOtherAsset: (id: string, patch: Partial<OtherAsset>) => Promise<void>;
+  deleteOtherAsset: (id: string) => Promise<void>;
+
   updateFireProfile: (patch: Partial<FIREProfile>) => void;
 }
 
@@ -81,8 +93,9 @@ export const useAppStore = create<AppState>((set) => ({
   categories: [],
   budgets: [],
   goals: [],
-  liabilities: seedLiabilities,
-  otherAssets: seedOtherAssets,
+  investments: [],
+  liabilities: [],
+  otherAssets: [],
   recurring: seedRecurring,
   fireProfile: seedFireProfile,
   dataLoaded: false,
@@ -93,14 +106,28 @@ export const useAppStore = create<AppState>((set) => ({
     if (!initPromise) {
       initPromise = (async () => {
         try {
-          const [accounts, transactions, categories, budgets, goals] = await Promise.all([
-            accountsRepo.listAccounts(),
-            transactionsRepo.listTransactions(),
-            categoriesRepo.listCategories(),
-            budgetsRepo.listBudgets(),
-            goalsRepo.listGoals(),
-          ]);
-          set({ accounts, transactions, categories, budgets, goals, dataLoaded: true });
+          const [accounts, transactions, categories, budgets, goals, investments, liabilities, otherAssets] =
+            await Promise.all([
+              accountsRepo.listAccounts(),
+              transactionsRepo.listTransactions(),
+              categoriesRepo.listCategories(),
+              budgetsRepo.listBudgets(),
+              goalsRepo.listGoals(),
+              investmentsRepo.listInvestments(),
+              liabilitiesRepo.listLiabilities(),
+              otherAssetsRepo.listOtherAssets(),
+            ]);
+          set({
+            accounts,
+            transactions,
+            categories,
+            budgets,
+            goals,
+            investments,
+            liabilities,
+            otherAssets,
+            dataLoaded: true,
+          });
         } catch (err) {
           toast.error(errorMessage(err, "Failed to load your data"));
         }
@@ -113,13 +140,16 @@ export const useAppStore = create<AppState>((set) => ({
   // on another device shows up here without a full page reload.
   refresh: async () => {
     try {
-      const [accounts, transactions, budgets, goals] = await Promise.all([
+      const [accounts, transactions, budgets, goals, investments, liabilities, otherAssets] = await Promise.all([
         accountsRepo.listAccounts(),
         transactionsRepo.listTransactions(),
         budgetsRepo.listBudgets(),
         goalsRepo.listGoals(),
+        investmentsRepo.listInvestments(),
+        liabilitiesRepo.listLiabilities(),
+        otherAssetsRepo.listOtherAssets(),
       ]);
-      set({ accounts, transactions, budgets, goals });
+      set({ accounts, transactions, budgets, goals, investments, liabilities, otherAssets });
     } catch (err) {
       toast.error(errorMessage(err, "Failed to refresh your data"));
     }
@@ -243,6 +273,87 @@ export const useAppStore = create<AppState>((set) => ({
       set((state) => ({ goals: state.goals.filter((g) => g.id !== id) }));
     } catch (err) {
       toast.error(errorMessage(err, "Failed to delete goal"));
+    }
+  },
+
+  addInvestment: async (i) => {
+    try {
+      const created = await investmentsRepo.createInvestment(i);
+      set((state) => ({ investments: [...state.investments, created] }));
+    } catch (err) {
+      toast.error(errorMessage(err, "Failed to add investment"));
+    }
+  },
+
+  updateInvestment: async (id, patch) => {
+    try {
+      const updated = await investmentsRepo.updateInvestment(id, patch);
+      set((state) => ({ investments: state.investments.map((i) => (i.id === id ? updated : i)) }));
+    } catch (err) {
+      toast.error(errorMessage(err, "Failed to update investment"));
+    }
+  },
+
+  deleteInvestment: async (id) => {
+    try {
+      await investmentsRepo.deleteInvestment(id);
+      set((state) => ({ investments: state.investments.filter((i) => i.id !== id) }));
+    } catch (err) {
+      toast.error(errorMessage(err, "Failed to delete investment"));
+    }
+  },
+
+  addLiability: async (l) => {
+    try {
+      const created = await liabilitiesRepo.createLiability(l);
+      set((state) => ({ liabilities: [...state.liabilities, created] }));
+    } catch (err) {
+      toast.error(errorMessage(err, "Failed to add liability"));
+    }
+  },
+
+  updateLiability: async (id, patch) => {
+    try {
+      const updated = await liabilitiesRepo.updateLiability(id, patch);
+      set((state) => ({ liabilities: state.liabilities.map((l) => (l.id === id ? updated : l)) }));
+    } catch (err) {
+      toast.error(errorMessage(err, "Failed to update liability"));
+    }
+  },
+
+  deleteLiability: async (id) => {
+    try {
+      await liabilitiesRepo.deleteLiability(id);
+      set((state) => ({ liabilities: state.liabilities.filter((l) => l.id !== id) }));
+    } catch (err) {
+      toast.error(errorMessage(err, "Failed to delete liability"));
+    }
+  },
+
+  addOtherAsset: async (o) => {
+    try {
+      const created = await otherAssetsRepo.createOtherAsset(o);
+      set((state) => ({ otherAssets: [...state.otherAssets, created] }));
+    } catch (err) {
+      toast.error(errorMessage(err, "Failed to add asset"));
+    }
+  },
+
+  updateOtherAsset: async (id, patch) => {
+    try {
+      const updated = await otherAssetsRepo.updateOtherAsset(id, patch);
+      set((state) => ({ otherAssets: state.otherAssets.map((o) => (o.id === id ? updated : o)) }));
+    } catch (err) {
+      toast.error(errorMessage(err, "Failed to update asset"));
+    }
+  },
+
+  deleteOtherAsset: async (id) => {
+    try {
+      await otherAssetsRepo.deleteOtherAsset(id);
+      set((state) => ({ otherAssets: state.otherAssets.filter((o) => o.id !== id) }));
+    } catch (err) {
+      toast.error(errorMessage(err, "Failed to delete asset"));
     }
   },
 

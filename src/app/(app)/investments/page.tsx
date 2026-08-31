@@ -1,11 +1,24 @@
 "use client";
 
+import { MoreHorizontal, TrendingUp, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+
+import { AddInvestmentDialog } from "@/components/add-investment-dialog";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { EmptyState } from "@/components/finance/empty-state";
 import { MetricCard } from "@/components/finance/metric-card";
 import { TrendChart } from "@/components/finance/trend-chart";
 import { AllocationDonut } from "@/components/finance/allocation-donut";
-import { investments, portfolioHistory } from "@/lib/mock-data";
+import { portfolioHistory } from "@/lib/mock-data";
+import { useAppStore } from "@/lib/store";
 import { formatINR, formatPercent } from "@/lib/calculations";
 import { allocationByGroup, ASSET_CLASS_LABEL, holdingsWithReturns } from "@/lib/investment-selectors";
 import { monthLabel } from "@/lib/selectors";
@@ -18,6 +31,7 @@ const GROUP_COLORS: Record<string, string> = {
 };
 
 export default function InvestmentsPage() {
+  const { investments, deleteInvestment } = useAppStore();
   const holdings = holdingsWithReturns(investments);
   const totalInvested = holdings.reduce((s, h) => s + h.invested, 0);
   const totalValue = holdings.reduce((s, h) => s + h.currentValue, 0);
@@ -34,9 +48,12 @@ export default function InvestmentsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Investments</h1>
-        <p className="text-sm text-muted-foreground">Portfolio across equity, debt, gold and crypto</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">Investments</h1>
+          <p className="text-sm text-muted-foreground">Portfolio across equity, debt, gold and crypto</p>
+        </div>
+        <AddInvestmentDialog />
       </div>
 
       <Card className="py-5">
@@ -81,6 +98,15 @@ export default function InvestmentsPage() {
           <CardTitle className="text-sm font-medium">Holdings</CardTitle>
         </CardHeader>
         <CardContent className="px-0">
+          {holdings.length === 0 ? (
+            <EmptyState
+              icon={TrendingUp}
+              title="No investments yet"
+              description="Add a holding to start tracking your portfolio."
+              action={<AddInvestmentDialog />}
+            />
+          ) : (
+            <>
           {/* Mobile: compact card list — an 8-column table doesn't fit small screens */}
           <div className="divide-y divide-border/70 md:hidden">
             {holdings.map((h) => (
@@ -98,6 +124,24 @@ export default function InvestmentsPage() {
                     {formatINR(h.gain, { compact: true })} ({formatPercent(h.returnPct, 1)})
                   </p>
                 </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="size-7 shrink-0">
+                      <MoreHorizontal className="size-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={() => {
+                        deleteInvestment(h.id);
+                        toast.success("Investment removed");
+                      }}
+                    >
+                      <Trash2 /> Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             ))}
           </div>
@@ -112,7 +156,8 @@ export default function InvestmentsPage() {
                 <TableHead className="text-right">LTP</TableHead>
                 <TableHead className="text-right">Current value</TableHead>
                 <TableHead className="text-right">Gain / Loss</TableHead>
-                <TableHead className="pr-4 text-right">Return</TableHead>
+                <TableHead className="text-right">Return</TableHead>
+                <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -130,13 +175,35 @@ export default function InvestmentsPage() {
                     {h.gain >= 0 ? "+" : ""}
                     {formatINR(h.gain, { compact: true })}
                   </TableCell>
-                  <TableCell className={`pr-4 text-right tabular-nums font-medium ${h.returnPct >= 0 ? "text-positive" : "text-negative"}`}>
+                  <TableCell className={`text-right tabular-nums font-medium ${h.returnPct >= 0 ? "text-positive" : "text-negative"}`}>
                     {formatPercent(h.returnPct, 1)}
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="size-7">
+                          <MoreHorizontal className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() => {
+                            deleteInvestment(h.id);
+                            toast.success("Investment removed");
+                          }}
+                        >
+                          <Trash2 /> Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>

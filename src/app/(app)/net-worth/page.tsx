@@ -1,15 +1,21 @@
 "use client";
 
+import { Trash2 } from "lucide-react";
+import { toast } from "sonner";
+
+import { AddLiabilityDialog } from "@/components/add-liability-dialog";
+import { AddOtherAssetDialog } from "@/components/add-other-asset-dialog";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricCard } from "@/components/finance/metric-card";
 import { TrendChart } from "@/components/finance/trend-chart";
 import { useAppStore } from "@/lib/store";
-import { netWorthHistory, otherAssets } from "@/lib/mock-data";
+import { netWorthHistory } from "@/lib/mock-data";
 import { calcCAGR, calcNetWorth, formatINR } from "@/lib/calculations";
 import { monthLabel } from "@/lib/selectors";
 
 export default function NetWorthPage() {
-  const { accounts, liabilities } = useAppStore();
+  const { accounts, liabilities, otherAssets, deleteLiability, deleteOtherAsset } = useAppStore();
 
   const cash = accounts.filter((a) => a.group === "cash").reduce((s, a) => s + a.balance, 0);
   const bank = accounts.filter((a) => a.group === "bank").reduce((s, a) => s + a.balance, 0);
@@ -130,6 +136,75 @@ export default function NetWorthPage() {
               Paid down {formatINR(debtReduction, { compact: true })} in liabilities over the last {Math.round(years)} years ·
               assets grew {assetGrowthPct.toFixed(0)}% in the same period.
             </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="flex-row items-center justify-between">
+            <CardTitle className="text-sm font-medium">Manage liabilities</CardTitle>
+            <AddLiabilityDialog />
+          </CardHeader>
+          <CardContent className="space-y-1">
+            {liabilities.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No liabilities added yet.</p>
+            ) : (
+              liabilities.map((l) => (
+                <div key={l.id} className="flex items-center justify-between rounded-md px-2 py-2 hover:bg-muted/50">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{l.name}</p>
+                    <p className="text-xs text-muted-foreground">{formatINR(l.outstanding, { compact: true })} outstanding</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-7 shrink-0 text-muted-foreground hover:text-negative"
+                    onClick={() => {
+                      deleteLiability(l.id);
+                      toast.success("Liability removed");
+                    }}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex-row items-center justify-between">
+            <CardTitle className="text-sm font-medium">Manage other assets</CardTitle>
+            <AddOtherAssetDialog />
+          </CardHeader>
+          <CardContent className="space-y-1">
+            {otherAssets.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No other assets added yet.</p>
+            ) : (
+              otherAssets.map((o) => (
+                <div key={o.id} className="flex items-center justify-between rounded-md px-2 py-2 hover:bg-muted/50">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{o.name}</p>
+                    <p className="text-xs capitalize text-muted-foreground">{o.category}</p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="text-sm tabular-nums">{formatINR(o.value, { compact: true })}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 text-muted-foreground hover:text-negative"
+                      onClick={() => {
+                        deleteOtherAsset(o.id);
+                        toast.success("Asset removed");
+                      }}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
           </CardContent>
         </Card>
       </div>
