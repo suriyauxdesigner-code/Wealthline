@@ -1,20 +1,21 @@
 "use client";
 
 // Client-side app state. `accounts`, `transactions`, `budgets`, `goals`,
-// `investments`, `liabilities`, and `otherAssets` are now Supabase-backed
-// (see src/lib/repositories/) — every mutation below calls a repository
-// function and updates local state from its result, so every existing
-// caller (dialogs, pages) keeps working unchanged even though these actions
-// are now async. `recurring` and `fireProfile` are still seeded mock data
-// pending a later migration phase.
+// `investments`, `liabilities`, `otherAssets`, and `fireProfile` are now
+// Supabase-backed (see src/lib/repositories/) — every mutation below calls a
+// repository function and updates local state from its result, so every
+// existing caller (dialogs, pages) keeps working unchanged even though these
+// actions are now async. `recurring` is still seeded mock data pending a
+// later migration phase.
 
 import { create } from "zustand";
 import { toast } from "sonner";
 
-import { fireProfile as seedFireProfile, recurringTransactions as seedRecurring } from "./mock-data";
+import { recurringTransactions as seedRecurring } from "./mock-data";
 import * as accountsRepo from "./repositories/accounts";
 import * as budgetsRepo from "./repositories/budgets";
 import * as categoriesRepo from "./repositories/categories";
+import * as fireProfileRepo from "./repositories/fire-profile";
 import * as goalsRepo from "./repositories/goals";
 import * as investmentsRepo from "./repositories/investments";
 import * as liabilitiesRepo from "./repositories/liabilities";
@@ -36,6 +37,22 @@ import type {
 function errorMessage(err: unknown, fallback: string) {
   return err instanceof Error ? err.message : fallback;
 }
+
+// Used until the user's own fire_profiles row loads (or if they haven't
+// completed onboarding yet) — the first slider/input change saves a real row.
+const DEFAULT_FIRE_PROFILE: FIREProfile = {
+  id: "",
+  currentAge: 30,
+  targetAge: 45,
+  currentNetWorth: 0,
+  annualExpenses: 0,
+  monthlyInvestment: 0,
+  expectedReturn: 11,
+  inflation: 6,
+  incomeGrowth: 8,
+  withdrawalRate: 3.5,
+  lifeExpectancy: 85,
+};
 
 interface AppState {
   accounts: Account[];
@@ -86,8 +103,9 @@ interface AppState {
 }
 
 let initPromise: Promise<void> | null = null;
+let fireProfileSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
-export const useAppStore = create<AppState>((set) => ({
+export const useAppStore = create<AppState>((set, get) => ({
   accounts: [],
   transactions: [],
   categories: [],
@@ -97,7 +115,7 @@ export const useAppStore = create<AppState>((set) => ({
   liabilities: [],
   otherAssets: [],
   recurring: seedRecurring,
-  fireProfile: seedFireProfile,
+  fireProfile: DEFAULT_FIRE_PROFILE,
   dataLoaded: false,
 
   // Called once on mount (see StoreInitializer) — dedupes concurrent callers
@@ -106,7 +124,7 @@ export const useAppStore = create<AppState>((set) => ({
     if (!initPromise) {
       initPromise = (async () => {
         try {
-          const [accounts, transactions, categories, budgets, goals, investments, liabilities, otherAssets] =
+          const [accounts, transactions, categories, budgets, goals, investments, liabilities, otherAssets, fireProfile] =
             await Promise.all([
               accountsRepo.listAccounts(),
               transactionsRepo.listTransactions(),
@@ -116,6 +134,7 @@ export const useAppStore = create<AppState>((set) => ({
               investmentsRepo.listInvestments(),
               liabilitiesRepo.listLiabilities(),
               otherAssetsRepo.listOtherAssets(),
+              fireProfileRepo.getFireProfile(),
             ]);
           set({
             accounts,
@@ -126,6 +145,7 @@ export const useAppStore = create<AppState>((set) => ({
             investments,
             liabilities,
             otherAssets,
+            fireProfile: fireProfile ?? DEFAULT_FIRE_PROFILE,
             dataLoaded: true,
           });
         } catch (err) {
@@ -140,16 +160,27 @@ export const useAppStore = create<AppState>((set) => ({
   // on another device shows up here without a full page reload.
   refresh: async () => {
     try {
-      const [accounts, transactions, budgets, goals, investments, liabilities, otherAssets] = await Promise.all([
-        accountsRepo.listAccounts(),
-        transactionsRepo.listTransactions(),
-        budgetsRepo.listBudgets(),
-        goalsRepo.listGoals(),
-        investmentsRepo.listInvestments(),
-        liabilitiesRepo.listLiabilities(),
-        otherAssetsRepo.listOtherAssets(),
-      ]);
-      set({ accounts, transactions, budgets, goals, investments, liabilities, otherAssets });
+      const [accounts, transactions, budgets, goals, investments, liabilities, otherAssets, fireProfile] =
+        await Promise.all([
+          accountsRepo.listAccounts(),
+          transactionsRepo.listTransactions(),
+          budgetsRepo.listBudgets(),
+          goalsRepo.listGoals(),
+          investmentsRepo.listInvestments(),
+          liabilitiesRepo.listLiabilities(),
+          otherAssetsRepo.listOtherAssets(),
+          fireProfileRepo.getFireProfile(),
+        ]);
+      set({
+        accounts,
+        transactions,
+        budgets,
+        goals,
+        investments,
+        liabilities,
+        otherAssets,
+        ...(fireProfile ? { fireProfile } : {}),
+      });
     } catch (err) {
       toast.error(errorMessage(err, "Failed to refresh your data"));
     }
@@ -357,5 +388,22 @@ export const useAppStore = create<AppState>((set) => ({
     }
   },
 
-  updateFireProfile: (patch) => set((state) => ({ fireProfile: { ...state.fireProfile, ...patch } })),
+  // The FIRE page is a live "what-if simulator" — sliders fire on every drag
+  // tick, so this updates local state instantly and synchronously (no
+  // network round trip per tick) while debouncing the actual Supabase save
+  // to ~800ms after the user stops adjusting, rather than persisting an
+  // entire scroll's worth of intermediate values.
+  updateFireProfile: (patch) => {
+    set((state) => ({ fireProfile: { ...state.fireProfile, ...patch } }));
+
+    if (fireProfileSaveTimer) clearTimeout(fireProfileSaveTimer);
+    fireProfileSaveTimer = setTimeout(async () => {
+      try {
+        const saved = await fireProfileRepo.saveFireProfile(get().fireProfile);
+        set({ fireProfile: saved });
+      } catch (err) {
+        toast.error(errorMessage(err, "Failed to save FIRE profile"));
+      }
+    }, 800);
+  },
 }));

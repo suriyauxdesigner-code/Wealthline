@@ -3,7 +3,7 @@
 // into investing) rather than being random — so every screen's numbers
 // reconcile with every other screen's.
 
-import type { Category, FIREProfile, RecurringTransaction, UserProfile } from "./types";
+import type { Category, RecurringTransaction, UserProfile } from "./types";
 
 export const user: UserProfile = {
   id: "u1",
@@ -51,22 +51,6 @@ export const categories: Category[] = [
   { id: CATEGORY_IDS.transfer, name: "Transfer", kind: "transfer", icon: "ArrowLeftRight", color: "chart-6" },
   { id: CATEGORY_IDS.investment, name: "Investment", kind: "investment", icon: "TrendingUp", color: "chart-4" },
 ];
-
-// ---------- FIRE profile ----------
-
-export const fireProfile: FIREProfile = {
-  id: "fire_1",
-  currentAge: 29,
-  targetAge: 45,
-  currentNetWorth: 1443310,
-  annualExpenses: 520000,
-  monthlyInvestment: 20000,
-  expectedReturn: 11,
-  inflation: 6,
-  incomeGrowth: 8,
-  withdrawalRate: 3.5,
-  lifeExpectancy: 85,
-};
 
 // ---------- Recurring transactions ----------
 
