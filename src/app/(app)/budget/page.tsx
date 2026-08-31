@@ -1,9 +1,19 @@
 "use client";
 
-import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, MoreHorizontal, Trash2, Wallet } from "lucide-react";
+import { toast } from "sonner";
 
+import { AddBudgetDialog } from "@/components/add-budget-dialog";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { MetricCard } from "@/components/finance/metric-card";
+import { EmptyState } from "@/components/finance/empty-state";
 import { ProgressIndicator, statusFromPct } from "@/components/finance/progress-indicator";
 import { EditBudgetPopover } from "@/components/finance/edit-budget-popover";
 import { resolveIcon } from "@/components/finance/icon-map";
@@ -14,7 +24,7 @@ import { budgetLinesForMonth, previousMonthKeys, totalSpendForMonth } from "@/li
 const CURRENT_MONTH = "2026-08";
 
 export default function BudgetPage() {
-  const { budgets, transactions, categories } = useAppStore();
+  const { budgets, transactions, categories, deleteBudget } = useAppStore();
   const lines = budgetLinesForMonth(budgets, transactions, categories, CURRENT_MONTH);
 
   const totalBudget = lines.reduce((s, l) => s + l.budget.limit, 0);
@@ -28,9 +38,12 @@ export default function BudgetPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Budget</h1>
-        <p className="text-sm text-muted-foreground">August 2026 · monthly category budgets</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">Budget</h1>
+          <p className="text-sm text-muted-foreground">August 2026 · monthly category budgets</p>
+        </div>
+        <AddBudgetDialog />
       </div>
 
       <Card className="py-5">
@@ -53,6 +66,18 @@ export default function BudgetPage() {
         </CardContent>
       </Card>
 
+      {lines.length === 0 ? (
+        <Card>
+          <CardContent>
+            <EmptyState
+              icon={Wallet}
+              title="No budgets yet"
+              description="Set a monthly limit for a category to start tracking it here."
+              action={<AddBudgetDialog />}
+            />
+          </CardContent>
+        </Card>
+      ) : (
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {lines.map((line) => {
           const Icon = resolveIcon(line.category.icon);
@@ -67,7 +92,27 @@ export default function BudgetPage() {
                     </div>
                     <span className="text-sm font-medium">{line.category.name}</span>
                   </div>
-                  <EditBudgetPopover budgetId={line.budget.id} currentLimit={line.budget.limit} />
+                  <div className="flex items-center">
+                    <EditBudgetPopover budgetId={line.budget.id} currentLimit={line.budget.limit} />
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="size-6 text-muted-foreground">
+                          <MoreHorizontal className="size-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() => {
+                            deleteBudget(line.budget.id);
+                            toast.success("Budget removed");
+                          }}
+                        >
+                          <Trash2 /> Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
 
                 <div className="flex items-baseline justify-between">
@@ -98,6 +143,7 @@ export default function BudgetPage() {
           );
         })}
       </div>
+      )}
     </div>
   );
 }

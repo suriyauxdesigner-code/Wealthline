@@ -1,26 +1,26 @@
 "use client";
 
-// Client-side app state. `accounts` and `transactions` are now Supabase-backed
-// (see src/lib/repositories/) — every mutation below calls a repository
-// function and updates local state from its result, so every existing
-// caller (dialogs, pages) keeps working unchanged even though these actions
-// are now async. Everything else here (budgets, goals, liabilities,
-// otherAssets, recurring, fireProfile) is still seeded mock data pending a
-// later migration phase.
+// Client-side app state. `accounts`, `transactions`, `budgets`, and `goals`
+// are now Supabase-backed (see src/lib/repositories/) — every mutation below
+// calls a repository function and updates local state from its result, so
+// every existing caller (dialogs, pages) keeps working unchanged even though
+// these actions are now async. `liabilities`, `otherAssets`, `recurring`,
+// and `fireProfile` are still seeded mock data pending a later migration
+// phase.
 
 import { create } from "zustand";
 import { toast } from "sonner";
 
 import {
-  budgets as seedBudgets,
   fireProfile as seedFireProfile,
-  goals as seedGoals,
   liabilities as seedLiabilities,
   otherAssets as seedOtherAssets,
   recurringTransactions as seedRecurring,
 } from "./mock-data";
 import * as accountsRepo from "./repositories/accounts";
+import * as budgetsRepo from "./repositories/budgets";
 import * as categoriesRepo from "./repositories/categories";
+import * as goalsRepo from "./repositories/goals";
 import * as transactionsRepo from "./repositories/transactions";
 import type {
   Account,
@@ -33,12 +33,6 @@ import type {
   RecurringTransaction,
   Transaction,
 } from "./types";
-
-let idCounter = 1000;
-function nextId(prefix: string) {
-  idCounter += 1;
-  return `${prefix}_${idCounter}`;
-}
 
 function errorMessage(err: unknown, fallback: string) {
   return err instanceof Error ? err.message : fallback;
@@ -64,16 +58,17 @@ interface AppState {
   deleteTransaction: (id: string) => Promise<void>;
   deleteTransactions: (ids: string[]) => Promise<void>;
 
-  addBudget: (b: Omit<Budget, "id">) => void;
-  updateBudget: (id: string, patch: Partial<Budget>) => void;
+  addBudget: (b: Omit<Budget, "id">) => Promise<void>;
+  updateBudget: (id: string, patch: Partial<Budget>) => Promise<void>;
+  deleteBudget: (id: string) => Promise<void>;
 
   addAccount: (a: Omit<Account, "id">) => Promise<void>;
   updateAccount: (id: string, patch: Partial<Account>) => Promise<void>;
   deleteAccount: (id: string) => Promise<void>;
 
-  addGoal: (g: Omit<Goal, "id">) => void;
-  updateGoal: (id: string, patch: Partial<Goal>) => void;
-  deleteGoal: (id: string) => void;
+  addGoal: (g: Omit<Goal, "id">) => Promise<void>;
+  updateGoal: (id: string, patch: Partial<Goal>) => Promise<void>;
+  deleteGoal: (id: string) => Promise<void>;
 
   updateFireProfile: (patch: Partial<FIREProfile>) => void;
 }
@@ -84,8 +79,8 @@ export const useAppStore = create<AppState>((set) => ({
   accounts: [],
   transactions: [],
   categories: [],
-  budgets: seedBudgets,
-  goals: seedGoals,
+  budgets: [],
+  goals: [],
   liabilities: seedLiabilities,
   otherAssets: seedOtherAssets,
   recurring: seedRecurring,
@@ -98,12 +93,14 @@ export const useAppStore = create<AppState>((set) => ({
     if (!initPromise) {
       initPromise = (async () => {
         try {
-          const [accounts, transactions, categories] = await Promise.all([
+          const [accounts, transactions, categories, budgets, goals] = await Promise.all([
             accountsRepo.listAccounts(),
             transactionsRepo.listTransactions(),
             categoriesRepo.listCategories(),
+            budgetsRepo.listBudgets(),
+            goalsRepo.listGoals(),
           ]);
-          set({ accounts, transactions, categories, dataLoaded: true });
+          set({ accounts, transactions, categories, budgets, goals, dataLoaded: true });
         } catch (err) {
           toast.error(errorMessage(err, "Failed to load your data"));
         }
@@ -116,11 +113,13 @@ export const useAppStore = create<AppState>((set) => ({
   // on another device shows up here without a full page reload.
   refresh: async () => {
     try {
-      const [accounts, transactions] = await Promise.all([
+      const [accounts, transactions, budgets, goals] = await Promise.all([
         accountsRepo.listAccounts(),
         transactionsRepo.listTransactions(),
+        budgetsRepo.listBudgets(),
+        goalsRepo.listGoals(),
       ]);
-      set({ accounts, transactions });
+      set({ accounts, transactions, budgets, goals });
     } catch (err) {
       toast.error(errorMessage(err, "Failed to refresh your data"));
     }
@@ -166,10 +165,32 @@ export const useAppStore = create<AppState>((set) => ({
     }
   },
 
-  addBudget: (b) => set((state) => ({ budgets: [...state.budgets, { ...b, id: nextId("bud") }] })),
+  addBudget: async (b) => {
+    try {
+      const created = await budgetsRepo.createBudget(b);
+      set((state) => ({ budgets: [...state.budgets, created] }));
+    } catch (err) {
+      toast.error(errorMessage(err, "Failed to add budget"));
+    }
+  },
 
-  updateBudget: (id, patch) =>
-    set((state) => ({ budgets: state.budgets.map((b) => (b.id === id ? { ...b, ...patch } : b)) })),
+  updateBudget: async (id, patch) => {
+    try {
+      const updated = await budgetsRepo.updateBudget(id, patch);
+      set((state) => ({ budgets: state.budgets.map((b) => (b.id === id ? updated : b)) }));
+    } catch (err) {
+      toast.error(errorMessage(err, "Failed to update budget"));
+    }
+  },
+
+  deleteBudget: async (id) => {
+    try {
+      await budgetsRepo.deleteBudget(id);
+      set((state) => ({ budgets: state.budgets.filter((b) => b.id !== id) }));
+    } catch (err) {
+      toast.error(errorMessage(err, "Failed to delete budget"));
+    }
+  },
 
   addAccount: async (a) => {
     try {
@@ -198,12 +219,32 @@ export const useAppStore = create<AppState>((set) => ({
     }
   },
 
-  addGoal: (g) => set((state) => ({ goals: [...state.goals, { ...g, id: nextId("goal") }] })),
+  addGoal: async (g) => {
+    try {
+      const created = await goalsRepo.createGoal(g);
+      set((state) => ({ goals: [...state.goals, created] }));
+    } catch (err) {
+      toast.error(errorMessage(err, "Failed to add goal"));
+    }
+  },
 
-  updateGoal: (id, patch) =>
-    set((state) => ({ goals: state.goals.map((g) => (g.id === id ? { ...g, ...patch } : g)) })),
+  updateGoal: async (id, patch) => {
+    try {
+      const updated = await goalsRepo.updateGoal(id, patch);
+      set((state) => ({ goals: state.goals.map((g) => (g.id === id ? updated : g)) }));
+    } catch (err) {
+      toast.error(errorMessage(err, "Failed to update goal"));
+    }
+  },
 
-  deleteGoal: (id) => set((state) => ({ goals: state.goals.filter((g) => g.id !== id) })),
+  deleteGoal: async (id) => {
+    try {
+      await goalsRepo.deleteGoal(id);
+      set((state) => ({ goals: state.goals.filter((g) => g.id !== id) }));
+    } catch (err) {
+      toast.error(errorMessage(err, "Failed to delete goal"));
+    }
+  },
 
   updateFireProfile: (patch) => set((state) => ({ fireProfile: { ...state.fireProfile, ...patch } })),
 }));
