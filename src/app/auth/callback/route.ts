@@ -2,9 +2,8 @@ import { NextResponse } from "next/server";
 
 import { createClient } from "@/lib/supabase/server";
 
-// Handles both the OAuth (Google) redirect and the email-link redirect
-// (signup confirmation, password reset) — both arrive here with a `code`
-// query param to exchange for a session.
+// Handles email-link redirects (signup confirmation, password reset) — each
+// arrives here with a `code` query param to exchange for a session.
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");

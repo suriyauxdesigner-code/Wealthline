@@ -4,13 +4,11 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase/client";
 
 export default function SignupPage() {
@@ -130,12 +128,6 @@ export default function SignupPage() {
             {pending ? "Creating account…" : "Create account"}
           </Button>
         </form>
-        <div className="flex items-center gap-3">
-          <Separator className="flex-1" />
-          <span className="text-xs text-muted-foreground">or</span>
-          <Separator className="flex-1" />
-        </div>
-        <GoogleSignInButton />
       </CardContent>
       <CardFooter className="justify-center border-t pt-6 text-sm text-muted-foreground">
         Already have an account?
