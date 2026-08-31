@@ -121,8 +121,20 @@ export function AddTransactionDialog({
   const selectedInvestment = investments.find((i) => i.id === investmentId);
   const isUnitBasedSelected = type === "investment" && !!selectedInvestment && isUnitBasedAssetClass(selectedInvestment.assetClass);
   const isValueBasedSelected = type === "investment" && !!selectedInvestment && !isUnitBasedSelected;
+  // Once a specific holding is picked, its name and linked account are
+  // derived from it, not typed in — disabled so they can't silently drift
+  // out of sync with the selection (as they could before). To change them,
+  // change the Investment picker itself (or pick "General").
+  const merchantLocked = type === "investment" && !!selectedInvestment;
+  const accountLocked = isUnitBasedSelected && investmentDirection === "sell";
+  const toAccountLocked = isUnitBasedSelected && investmentDirection === "buy";
 
   const relevantCategories = categories.filter((c) => c.kind === TYPE_TO_CATEGORY_KIND[type]);
+  // The destination select normally excludes the source account (you can't
+  // transfer to the same account) — but when it's locked to the holding's
+  // own account, that account must stay in the list or Radix has nothing to
+  // render the locked value's label from.
+  const toAccountOptions = toAccountLocked ? accounts : accounts.filter((a) => a.id !== accountId);
 
   function applyInvestmentAccountRoles(inv: Investment, direction: BuySell) {
     if (direction === "sell") {
@@ -137,7 +149,7 @@ export function AddTransactionDialog({
     setInvestmentId(nextId);
     const inv = investments.find((i) => i.id === nextId);
     if (!inv) return;
-    if (!merchant) setMerchant(inv.name);
+    setMerchant(inv.name);
     if (isUnitBasedAssetClass(inv.assetClass)) {
       setInvestmentPrice(inv.currentPrice ? String(inv.currentPrice) : "");
       applyInvestmentAccountRoles(inv, investmentDirection);
@@ -382,7 +394,11 @@ export function AddTransactionDialog({
                 placeholder={type === "income" ? "e.g. Salary" : "e.g. Swiggy"}
                 value={merchant}
                 onChange={(e) => setMerchant(e.target.value)}
+                disabled={merchantLocked}
               />
+              {merchantLocked && (
+                <p className="text-xs text-muted-foreground">Set from the selected investment — pick &quot;General&quot; to edit.</p>
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -402,8 +418,8 @@ export function AddTransactionDialog({
             </div>
 
             <div className="space-y-1.5">
-              <Label>{isUnitBasedSelected && investmentDirection === "sell" ? "Account (auto: broker)" : "Account"}</Label>
-              <Select value={accountId} onValueChange={setAccountId}>
+              <Label>{accountLocked ? "Account (auto: broker)" : "Account"}</Label>
+              <Select value={accountId} onValueChange={setAccountId} disabled={accountLocked}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
@@ -415,7 +431,7 @@ export function AddTransactionDialog({
                   ))}
                 </SelectContent>
               </Select>
-              {isUnitBasedSelected && investmentDirection === "sell" && (
+              {accountLocked && (
                 <p className="text-xs text-muted-foreground">
                   Pre-filled from {selectedInvestment!.name}&apos;s linked account.
                 </p>
@@ -431,23 +447,21 @@ export function AddTransactionDialog({
                       ? "Deposit proceeds to"
                       : "Investment account"}
                 </Label>
-                <Select value={toAccountId} onValueChange={setToAccountId}>
+                <Select value={toAccountId} onValueChange={setToAccountId} disabled={toAccountLocked}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select destination" />
                   </SelectTrigger>
                   <SelectContent>
-                    {accounts
-                      .filter((a) => a.id !== accountId)
-                      .map((a) => (
-                        <SelectItem key={a.id} value={a.id}>
-                          {a.name}
-                        </SelectItem>
-                      ))}
+                    {toAccountOptions.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
-                {isUnitBasedSelected && investmentDirection === "buy" && (
+                {toAccountLocked && (
                   <p className="text-xs text-muted-foreground">
-                    Pre-filled from {selectedInvestment!.name}&apos;s linked account — change it if this trade settled elsewhere.
+                    Pre-filled from {selectedInvestment!.name}&apos;s linked account.
                   </p>
                 )}
               </div>
