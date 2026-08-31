@@ -12,7 +12,7 @@ export function AppSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden lg:flex lg:w-60 lg:shrink-0 lg:flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+    <aside className="sticky top-0 hidden h-svh lg:flex lg:w-60 lg:shrink-0 lg:flex-col overflow-y-auto border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
       <div className="flex h-14 items-center gap-2 px-5">
         <div className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
           <Flame className="size-3.5" />
