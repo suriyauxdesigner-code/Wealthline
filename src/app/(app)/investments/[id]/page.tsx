@@ -147,11 +147,11 @@ export default function InvestmentDetailPage({ params }: { params: Promise<{ id:
 
       <Card className="py-5">
         <CardContent className="grid grid-cols-2 gap-6 px-5 sm:grid-cols-4 sm:px-6">
-          <MetricCard label="Current value" value={formatINR(currentValue, { compact: true })} size="lg" />
-          <MetricCard label="Invested" value={formatINR(invested, { compact: true })} size="lg" />
+          <MetricCard label="Current value" value={formatINR(currentValue)} size="lg" />
+          <MetricCard label="Invested" value={formatINR(invested)} size="lg" />
           <MetricCard
             label="Total returns"
-            value={`${gain >= 0 ? "+" : ""}${formatINR(gain, { compact: true })}`}
+            value={`${gain >= 0 ? "+" : ""}${formatINR(gain)}`}
             changePct={returnPct}
             size="lg"
           />
