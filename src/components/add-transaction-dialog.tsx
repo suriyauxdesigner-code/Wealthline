@@ -141,6 +141,11 @@ export function AddTransactionDialog({
       setAccountId(inv.accountId);
     } else {
       setToAccountId(inv.accountId);
+      // The paying account and the holding's own account should normally
+      // differ (money moves from your bank into the broker) — if the
+      // current source happens to already be the broker itself, swap to a
+      // different account so the two fields don't show the same value.
+      setAccountId((prev) => (prev === inv.accountId ? (accounts.find((a) => a.id !== inv.accountId)?.id ?? prev) : prev));
     }
   }
 
@@ -401,23 +406,25 @@ export function AddTransactionDialog({
               )}
             </div>
 
-            <div className="space-y-1.5">
-              <Label>Category</Label>
-              <Select value={categoryId} onValueChange={setCategoryId}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent>
-                  {relevantCategories.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {relevantCategories.length > 1 && (
+              <div className="space-y-1.5">
+                <Label>Category</Label>
+                <Select value={categoryId} onValueChange={setCategoryId}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {relevantCategories.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
-            <div className="space-y-1.5">
+            <div className={relevantCategories.length > 1 ? "space-y-1.5" : "col-span-2 space-y-1.5"}>
               <Label>{accountLocked ? "Account (auto: broker)" : "Account"}</Label>
               <Select value={accountId} onValueChange={setAccountId} disabled={accountLocked}>
                 <SelectTrigger className="w-full">
