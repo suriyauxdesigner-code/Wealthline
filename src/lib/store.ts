@@ -124,6 +124,50 @@ export const useAppStore = create<AppState>((set, get) => {
     }
   }
 
+  // Every transaction moves real money, so it must move the linked
+  // account's balance too — income/expense touch one account, transfer and
+  // investment move money from accountId to toAccountId. For a liability
+  // account (e.g. a credit card modeled as an account, balance = amount
+  // owed), the sign flips: an expense on that card *increases* what's owed,
+  // and money arriving at it (a payment) *decreases* it.
+  async function applyAccountDelta(accountId: string, rawDelta: number) {
+    if (rawDelta === 0) return;
+    const account = get().accounts.find((a) => a.id === accountId);
+    if (!account) return;
+    const delta = account.isLiabilityAccount ? -rawDelta : rawDelta;
+    try {
+      const updated = await accountsRepo.updateAccount(accountId, { balance: account.balance + delta });
+      set((state) => ({ accounts: state.accounts.map((a) => (a.id === accountId ? updated : a)) }));
+    } catch (err) {
+      toast.error(errorMessage(err, "Failed to update account balance"));
+    }
+  }
+
+  function accountDeltasForTransaction(
+    t: Pick<Transaction, "type" | "amount" | "accountId" | "toAccountId">
+  ): { accountId: string; amount: number }[] {
+    if (t.type === "income") return [{ accountId: t.accountId, amount: t.amount }];
+    if (t.type === "expense") return [{ accountId: t.accountId, amount: -t.amount }];
+    // transfer or investment: money moves out of accountId, into toAccountId
+    const deltas = [{ accountId: t.accountId, amount: -t.amount }];
+    if (t.toAccountId) deltas.push({ accountId: t.toAccountId, amount: t.amount });
+    return deltas;
+  }
+
+  // sign=1 applies a transaction's effects (on create, or the new side of an
+  // edit); sign=-1 reverses them (on delete, or the old side of an edit).
+  async function applyTransactionEffects(
+    t: Pick<Transaction, "type" | "amount" | "accountId" | "toAccountId" | "liabilityId">,
+    sign: 1 | -1
+  ) {
+    for (const d of accountDeltasForTransaction(t)) {
+      await applyAccountDelta(d.accountId, d.amount * sign);
+    }
+    // A debt-linked transaction is always a payment: applying it (sign=1)
+    // reduces outstanding, reversing it (sign=-1) puts it back.
+    if (t.liabilityId) await adjustLiabilityOutstanding(t.liabilityId, -t.amount * sign);
+  }
+
   return {
   accounts: [],
   transactions: [],
@@ -213,7 +257,7 @@ export const useAppStore = create<AppState>((set, get) => {
           (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
         ),
       }));
-      await adjustLiabilityOutstanding(created.liabilityId, -created.amount);
+      await applyTransactionEffects(created, 1);
     } catch (err) {
       toast.error(errorMessage(err, "Failed to add transaction"));
     }
@@ -224,11 +268,10 @@ export const useAppStore = create<AppState>((set, get) => {
       const before = get().transactions.find((t) => t.id === id);
       const updated = await transactionsRepo.updateTransaction(id, patch);
       set((state) => ({ transactions: state.transactions.map((t) => (t.id === id ? updated : t)) }));
-      // Reverse the old debt effect (if any), then apply the new one — this
-      // correctly handles the amount changing, the linked debt changing, or
-      // the transaction being linked/unlinked from a debt.
-      if (before?.liabilityId) await adjustLiabilityOutstanding(before.liabilityId, before.amount);
-      await adjustLiabilityOutstanding(updated.liabilityId, -updated.amount);
+      // Reverse the old effects (if any), then apply the new ones — this
+      // correctly handles the amount, account(s), or linked debt changing.
+      if (before) await applyTransactionEffects(before, -1);
+      await applyTransactionEffects(updated, 1);
     } catch (err) {
       toast.error(errorMessage(err, "Failed to update transaction"));
     }
@@ -238,7 +281,7 @@ export const useAppStore = create<AppState>((set, get) => {
     try {
       const deleted = await transactionsRepo.deleteTransaction(id);
       set((state) => ({ transactions: state.transactions.filter((t) => t.id !== id) }));
-      await adjustLiabilityOutstanding(deleted.liabilityId, deleted.amount);
+      await applyTransactionEffects(deleted, -1);
     } catch (err) {
       toast.error(errorMessage(err, "Failed to delete transaction"));
     }
@@ -248,13 +291,8 @@ export const useAppStore = create<AppState>((set, get) => {
     try {
       const deleted = await transactionsRepo.deleteTransactions(ids);
       set((state) => ({ transactions: state.transactions.filter((t) => !ids.includes(t.id)) }));
-      const reversalsByLiability = new Map<string, number>();
       for (const t of deleted) {
-        if (!t.liabilityId) continue;
-        reversalsByLiability.set(t.liabilityId, (reversalsByLiability.get(t.liabilityId) ?? 0) + t.amount);
-      }
-      for (const [liabilityId, amount] of reversalsByLiability) {
-        await adjustLiabilityOutstanding(liabilityId, amount);
+        await applyTransactionEffects(t, -1);
       }
     } catch (err) {
       toast.error(errorMessage(err, "Failed to delete transactions"));
