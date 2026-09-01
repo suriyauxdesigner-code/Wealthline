@@ -18,18 +18,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAppStore } from "@/lib/store";
-
-// Matches the hardcoded "current month" used throughout the Overview/Budget/
-// Reports pages — not a new convention introduced here.
-const CURRENT_MONTH = "2026-08";
+import { getCurrentMonthKey } from "@/lib/selectors";
 
 export function AddBudgetDialog() {
   const [open, setOpen] = React.useState(false);
   const categories = useAppStore((s) => s.categories);
   const budgets = useAppStore((s) => s.budgets);
   const addBudget = useAppStore((s) => s.addBudget);
+  const currentMonth = getCurrentMonthKey();
 
-  const budgetedCategoryIds = new Set(budgets.filter((b) => b.month === CURRENT_MONTH).map((b) => b.categoryId));
+  const budgetedCategoryIds = new Set(budgets.filter((b) => b.month === currentMonth).map((b) => b.categoryId));
   const availableCategories = categories.filter((c) => c.kind === "expense" && !budgetedCategoryIds.has(c.id));
 
   const [categoryId, setCategoryId] = React.useState("");
@@ -49,7 +47,7 @@ export function AddBudgetDialog() {
     const numericLimit = Number(limit);
     if (!selectedCategoryId || !numericLimit || numericLimit <= 0) return;
 
-    await addBudget({ categoryId: selectedCategoryId, limit: numericLimit, month: CURRENT_MONTH });
+    await addBudget({ categoryId: selectedCategoryId, limit: numericLimit, month: currentMonth });
     const category = categories.find((c) => c.id === selectedCategoryId);
     toast.success("Budget added", { description: category?.name });
     reset();

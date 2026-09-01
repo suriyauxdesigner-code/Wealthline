@@ -19,20 +19,19 @@ import { EditBudgetPopover } from "@/components/finance/edit-budget-popover";
 import { resolveIcon } from "@/components/finance/icon-map";
 import { useAppStore } from "@/lib/store";
 import { formatINR, formatPercent } from "@/lib/calculations";
-import { budgetLinesForMonth, previousMonthKeys, totalSpendForMonth } from "@/lib/selectors";
-
-const CURRENT_MONTH = "2026-08";
+import { budgetLinesForMonth, getCurrentMonthKey, monthLabel, previousMonthKeys, totalSpendForMonth } from "@/lib/selectors";
 
 export default function BudgetPage() {
   const { budgets, transactions, categories, deleteBudget } = useAppStore();
-  const lines = budgetLinesForMonth(budgets, transactions, categories, CURRENT_MONTH);
+  const currentMonth = getCurrentMonthKey();
+  const lines = budgetLinesForMonth(budgets, transactions, categories, currentMonth);
 
   const totalBudget = lines.reduce((s, l) => s + l.budget.limit, 0);
   const totalSpent = lines.reduce((s, l) => s + l.spent, 0);
   const remaining = totalBudget - totalSpent;
   const adherence = lines.length > 0 ? (lines.filter((l) => l.status !== "over").length / lines.length) * 100 : 100;
 
-  const prevMonth = previousMonthKeys(CURRENT_MONTH, 1)[0];
+  const prevMonth = previousMonthKeys(currentMonth, 1)[0];
   const prevSpend = totalSpendForMonth(transactions, prevMonth);
   const spendChangePct = prevSpend > 0 ? ((totalSpent - prevSpend) / prevSpend) * 100 : 0;
 
@@ -41,7 +40,7 @@ export default function BudgetPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Budget</h1>
-          <p className="text-sm text-muted-foreground">August 2026 · monthly category budgets</p>
+          <p className="text-sm text-muted-foreground">{monthLabel(currentMonth)} · monthly category budgets</p>
         </div>
         <AddBudgetDialog />
       </div>

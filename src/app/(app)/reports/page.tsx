@@ -11,14 +11,12 @@ import { TrendChart } from "@/components/finance/trend-chart";
 import { InsightCard } from "@/components/finance/insight-card";
 import { useAppStore } from "@/lib/store";
 import { calcSavingsRate, formatINR, formatPercent } from "@/lib/calculations";
-import { cashFlowForMonth, monthLabel } from "@/lib/selectors";
+import { cashFlowForMonth, getCurrentMonthKey, monthLabel } from "@/lib/selectors";
 import { generateInsights } from "@/lib/insights";
 import { toast } from "sonner";
 
-const CURRENT_MONTH = "2026-08";
-
-function lastMonthKeys(count: number): string[] {
-  const [y, m] = CURRENT_MONTH.split("-").map(Number);
+function lastMonthKeys(currentMonthKey: string, count: number): string[] {
+  const [y, m] = currentMonthKey.split("-").map(Number);
   const out: string[] = [];
   for (let i = count - 1; i >= 0; i--) {
     const d = new Date(y, m - 1 - i, 1);
@@ -29,7 +27,8 @@ function lastMonthKeys(count: number): string[] {
 
 export default function ReportsPage() {
   const { transactions, budgets, categories, fireProfile, accounts } = useAppStore();
-  const months = lastMonthKeys(12);
+  const currentMonth = getCurrentMonthKey();
+  const months = lastMonthKeys(currentMonth, 12);
 
   const monthlyRows = months.map((m) => {
     const cf = cashFlowForMonth(transactions, m);
@@ -59,7 +58,7 @@ export default function ReportsPage() {
     netWorthHistory: [],
     fireProfile,
     currentPortfolioValue: investmentsTotal,
-    currentMonthKey: CURRENT_MONTH,
+    currentMonthKey: currentMonth,
   });
 
   function exportSummary() {

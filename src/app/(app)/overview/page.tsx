@@ -19,10 +19,8 @@ import { displayName, useAuthUser } from "@/hooks/use-auth-user";
 import { useAppStore } from "@/lib/store";
 import { calcSavingsRate, formatINR } from "@/lib/calculations";
 import { calcNetWorthBreakdown } from "@/lib/net-worth-selectors";
-import { cashFlowForMonth, monthLabel, previousMonthKeys, spendByCategory } from "@/lib/selectors";
+import { cashFlowForRange, getCurrentMonthKey, resolvePeriod, spendByCategoryForRange } from "@/lib/selectors";
 import { generateInsights } from "@/lib/insights";
-
-const CURRENT_MONTH = "2026-08";
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -35,17 +33,22 @@ export default function OverviewPage() {
   const { transactions, accounts, categories, budgets, liabilities, otherAssets, fireProfile } = useAppStore();
   const authUser = useAuthUser();
   const [range, setRange] = React.useState<RangeOption>("this-month");
+  const [customRange, setCustomRange] = React.useState(() => {
+    const today = new Date();
+    return { start: new Date(today.getFullYear(), today.getMonth(), 1), end: today };
+  });
 
-  const monthKey = range === "last-month" ? previousMonthKeys(CURRENT_MONTH, 1)[0] : CURRENT_MONTH;
+  const today = new Date();
+  const period = resolvePeriod(range, today, customRange);
 
-  const cashFlow = cashFlowForMonth(transactions, monthKey);
+  const cashFlow = cashFlowForRange(transactions, period.start, period.end);
   const savingsRate = calcSavingsRate(cashFlow.income, cashFlow.expenses);
 
   const breakdown = calcNetWorthBreakdown(accounts, liabilities, otherAssets);
   const cashTotal = breakdown.cash + breakdown.bank;
   const investmentsTotal = breakdown.investments;
 
-  const spend = spendByCategory(transactions, categories, monthKey);
+  const spend = spendByCategoryForRange(transactions, categories, period.start, period.end);
   const recentTransactions = [...transactions]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 6);
@@ -57,7 +60,7 @@ export default function OverviewPage() {
     netWorthHistory: [],
     fireProfile,
     currentPortfolioValue: investmentsTotal,
-    currentMonthKey: CURRENT_MONTH,
+    currentMonthKey: getCurrentMonthKey(today),
   }).slice(0, 3);
 
   return (
@@ -70,7 +73,7 @@ export default function OverviewPage() {
           <p className="text-sm text-muted-foreground">Here&rsquo;s how your money is doing this month.</p>
         </div>
         <div className="flex items-center gap-2">
-          <DateRangeSelect value={range} onChange={setRange} />
+          <DateRangeSelect value={range} onChange={setRange} customRange={customRange} onCustomRangeChange={setCustomRange} />
           <AddTransactionDialog />
         </div>
       </div>
@@ -89,7 +92,7 @@ export default function OverviewPage() {
           <div>
             <CardTitle className="text-sm font-medium">Cash flow</CardTitle>
           </div>
-          <span className="text-xs text-muted-foreground">{monthLabel(monthKey)}</span>
+          <span className="text-xs text-muted-foreground">{period.label}</span>
         </CardHeader>
         <CardContent className="space-y-6">
           <CashFlowFunnel income={cashFlow.income} expenses={cashFlow.expenses} investments={cashFlow.investments} remaining={cashFlow.remaining} />

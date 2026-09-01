@@ -11,10 +11,8 @@ import { FireProjectionChart } from "@/components/finance/fire-projection-chart"
 import { FinancialHealthCard } from "@/components/finance/financial-health-card";
 import { useAppStore } from "@/lib/store";
 import { formatINR, formatPercent, projectFire, calcFinancialHealth } from "@/lib/calculations";
-import { cashFlowForMonth, totalSpendForMonth } from "@/lib/selectors";
+import { cashFlowForMonth, getCurrentMonthKey, totalSpendForMonth } from "@/lib/selectors";
 import { cn } from "@/lib/utils";
-
-const CURRENT_MONTH = "2026-08";
 
 export default function FirePage() {
   const { fireProfile, updateFireProfile, accounts, liabilities, transactions } = useAppStore();
@@ -42,8 +40,9 @@ export default function FirePage() {
 
   const monthlyExpenses = Math.round(fireProfile.annualExpenses / 12);
 
-  const cashFlow = cashFlowForMonth(transactions, CURRENT_MONTH);
-  const avgMonthlyExpenses = totalSpendForMonth(transactions, CURRENT_MONTH);
+  const currentMonth = getCurrentMonthKey();
+  const cashFlow = cashFlowForMonth(transactions, currentMonth);
+  const avgMonthlyExpenses = totalSpendForMonth(transactions, currentMonth);
   const savingsRatePct = cashFlow.income > 0 ? ((cashFlow.income - cashFlow.expenses) / cashFlow.income) * 100 : 0;
   const investmentRatePct = cashFlow.income > 0 ? (cashFlow.investments / cashFlow.income) * 100 : 0;
   const emergencyFundMonths = avgMonthlyExpenses > 0 ? cashTotal / avgMonthlyExpenses : 0;
