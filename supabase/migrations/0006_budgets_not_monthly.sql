@@ -10,4 +10,13 @@
 
 alter table public.budgets drop constraint if exists budgets_user_id_category_id_month_key;
 alter table public.budgets drop column if exists month;
+
+-- A category could have one budget row per month before this change — keep
+-- only the most recently created row per (user_id, category_id) so the new
+-- unique constraint below doesn't fail on leftover duplicates.
+delete from public.budgets a using public.budgets b
+where a.user_id = b.user_id
+  and a.category_id = b.category_id
+  and (a.created_at, a.id) < (b.created_at, b.id);
+
 alter table public.budgets add constraint budgets_user_id_category_id_key unique (user_id, category_id);
