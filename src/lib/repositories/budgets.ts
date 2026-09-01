@@ -5,18 +5,17 @@ interface BudgetRow {
   id: string;
   category_id: string;
   amount: number;
-  month: string;
 }
 
-const COLUMNS = "id, category_id, amount, month";
+const COLUMNS = "id, category_id, amount";
 
 function mapBudget(row: BudgetRow): Budget {
-  return { id: row.id, categoryId: row.category_id, limit: row.amount, month: row.month };
+  return { id: row.id, categoryId: row.category_id, limit: row.amount };
 }
 
 export async function listBudgets(): Promise<Budget[]> {
   const supabase = createClient();
-  const { data, error } = await supabase.from("budgets").select(COLUMNS).order("month", { ascending: false });
+  const { data, error } = await supabase.from("budgets").select(COLUMNS).order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []).map(mapBudget);
 }
@@ -25,7 +24,7 @@ export async function createBudget(input: Omit<Budget, "id">): Promise<Budget> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("budgets")
-    .insert({ category_id: input.categoryId, amount: input.limit, month: input.month })
+    .insert({ category_id: input.categoryId, amount: input.limit })
     .select(COLUMNS)
     .single();
   if (error) throw new Error(error.message);
@@ -37,7 +36,6 @@ export async function updateBudget(id: string, patch: Partial<Budget>): Promise<
   const update: Record<string, unknown> = {};
   if (patch.categoryId !== undefined) update.category_id = patch.categoryId;
   if (patch.limit !== undefined) update.amount = patch.limit;
-  if (patch.month !== undefined) update.month = patch.month;
 
   const { data, error } = await supabase.from("budgets").update(update).eq("id", id).select(COLUMNS).single();
   if (error) throw new Error(error.message);

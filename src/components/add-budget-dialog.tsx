@@ -18,16 +18,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAppStore } from "@/lib/store";
-import { getCurrentMonthKey } from "@/lib/selectors";
 
 export function AddBudgetDialog() {
   const [open, setOpen] = React.useState(false);
   const categories = useAppStore((s) => s.categories);
   const budgets = useAppStore((s) => s.budgets);
   const addBudget = useAppStore((s) => s.addBudget);
-  const currentMonth = getCurrentMonthKey();
 
-  const budgetedCategoryIds = new Set(budgets.filter((b) => b.month === currentMonth).map((b) => b.categoryId));
+  // A category can only ever have one standing budget — already-budgeted
+  // categories are hidden here; use Edit on the existing budget instead.
+  const budgetedCategoryIds = new Set(budgets.map((b) => b.categoryId));
   const availableCategories = categories.filter((c) => c.kind === "expense" && !budgetedCategoryIds.has(c.id));
 
   const [categoryId, setCategoryId] = React.useState("");
@@ -47,7 +47,7 @@ export function AddBudgetDialog() {
     const numericLimit = Number(limit);
     if (!selectedCategoryId || !numericLimit || numericLimit <= 0) return;
 
-    await addBudget({ categoryId: selectedCategoryId, limit: numericLimit, month: currentMonth });
+    await addBudget({ categoryId: selectedCategoryId, limit: numericLimit });
     const category = categories.find((c) => c.id === selectedCategoryId);
     toast.success("Budget added", { description: category?.name });
     reset();

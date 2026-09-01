@@ -174,6 +174,8 @@ export function budgetStatusFor(pct: number): BudgetStatus {
   return "healthy";
 }
 
+// Budgets are standing per-category limits (not scoped to a month), so
+// every budget is evaluated here — only the spend side is month-specific.
 export function budgetLinesForMonth(
   budgets: Budget[],
   transactions: Transaction[],
@@ -183,7 +185,6 @@ export function budgetLinesForMonth(
   const spend = spendByCategory(transactions, categories, monthKey);
   const spendMap = new Map(spend.map((s) => [s.category.id, s.total]));
   return budgets
-    .filter((b) => b.month === monthKey)
     .map((b) => {
       const spent = spendMap.get(b.categoryId) ?? 0;
       const pct = b.limit > 0 ? (spent / b.limit) * 100 : 0;

@@ -79,10 +79,11 @@ export interface Transaction {
 
 // ---------- Budgets ----------
 
+// Standing monthly limit per category — set once, applies every month until
+// edited or deleted (not re-created month to month).
 export interface Budget {
   id: string;
   categoryId: string;
-  month: string; // "2026-08"
   limit: number;
 }
 
