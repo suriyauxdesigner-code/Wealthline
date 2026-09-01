@@ -70,7 +70,9 @@ export default function OverviewPage() {
           <h1 className="text-xl font-semibold tracking-tight">
             {greeting()}, {displayName(authUser).split(" ")[0]}
           </h1>
-          <p className="text-sm text-muted-foreground">Here&rsquo;s how your money is doing this month.</p>
+          <p className="text-sm text-muted-foreground">
+            {today.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <DateRangeSelect value={range} onChange={setRange} customRange={customRange} onCustomRangeChange={setCustomRange} />
