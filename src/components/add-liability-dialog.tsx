@@ -69,8 +69,12 @@ export function AddLiabilityDialog({ editLiability, trigger, open: openProp, onO
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const numericPrincipal = Number(principal);
-    const numericOutstanding = Number(outstanding);
-    if (!name || !numericPrincipal || !numericOutstanding) return;
+    // A blank Outstanding defaults to the full principal (nothing paid down
+    // yet) rather than 0 — an *explicit* 0 is a valid, real state (the debt
+    // is fully paid off), so it must not be rejected the way a truly empty
+    // field should be.
+    const numericOutstanding = outstanding === "" ? numericPrincipal : Number(outstanding);
+    if (!name || !numericPrincipal || numericPrincipal <= 0 || Number.isNaN(numericOutstanding) || numericOutstanding < 0) return;
 
     const payload = {
       name,
@@ -158,7 +162,7 @@ export function AddLiabilityDialog({ editLiability, trigger, open: openProp, onO
               <Input
                 id="liability-outstanding"
                 inputMode="numeric"
-                placeholder="0"
+                placeholder={principal || "Same as principal"}
                 value={outstanding}
                 onChange={(e) => setOutstanding(e.target.value.replace(/[^0-9]/g, ""))}
               />

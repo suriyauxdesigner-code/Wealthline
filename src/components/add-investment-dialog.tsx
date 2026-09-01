@@ -121,8 +121,12 @@ export function AddInvestmentDialog({
         }
       } else {
         const numericInvested = Number(investedAmount);
-        const numericCurrent = Number(currentValue);
-        if (!numericInvested || !numericCurrent) {
+        // A blank Current value defaults to the invested amount (no
+        // gain/loss recorded yet) — an *explicit* 0 (e.g. a matured/
+        // withdrawn FD you still want on record) is a valid real state and
+        // must not be rejected the way a truly empty field should be.
+        const numericCurrent = currentValue === "" ? numericInvested : Number(currentValue);
+        if (!numericInvested || numericInvested <= 0 || Number.isNaN(numericCurrent) || numericCurrent < 0) {
           setSubmitting(false);
           return;
         }
@@ -281,7 +285,7 @@ export function AddInvestmentDialog({
                 <Input
                   id="investment-current-value"
                   inputMode="decimal"
-                  placeholder="0"
+                  placeholder={investedAmount || "Same as invested"}
                   value={currentValue}
                   onChange={(e) => setCurrentValue(e.target.value.replace(/[^0-9.]/g, ""))}
                 />

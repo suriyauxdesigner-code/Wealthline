@@ -58,7 +58,10 @@ export function AddOtherAssetDialog({ editAsset, trigger, open: openProp, onOpen
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const numericValue = Number(value);
-    if (!name || !numericValue) return;
+    // Reject a truly blank field (forgot to fill it in), but allow an
+    // explicit 0 — a fully depreciated vehicle is still a real asset worth
+    // recording, just at zero value.
+    if (!name || value === "" || Number.isNaN(numericValue) || numericValue < 0) return;
 
     if (isEdit) {
       await updateOtherAsset(editAsset!.id, { name, category, value: numericValue });
