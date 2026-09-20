@@ -128,6 +128,7 @@
   --wl-ink: #191919;
   --wl-muted: #69696f;
   --wl-border: #e7e7e8;
+  --wl-error: #b13a36;
   font-family: var(--font-manrope-mobile), sans-serif;
 }
 
@@ -140,6 +141,7 @@
   --color-wl-ink: var(--wl-ink);
   --color-wl-muted: var(--wl-muted);
   --color-wl-border: var(--wl-border);
+  --color-wl-error: var(--wl-error);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);

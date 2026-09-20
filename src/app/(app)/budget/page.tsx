@@ -1,9 +1,11 @@
 "use client";
 
-import { ArrowDownRight, ArrowUpRight, MoreHorizontal, Trash2, Wallet } from "lucide-react";
+import * as React from "react";
+import { ArrowDownRight, ArrowUpRight, MoreHorizontal, Plus, Trash2, Wallet } from "lucide-react";
 import { toast } from "sonner";
 
 import { AddBudgetDialog } from "@/components/add-budget-dialog";
+import { MobileAddBudgetSheet } from "@/components/mobile/add-budget-sheet";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,11 +22,14 @@ import { resolveIcon } from "@/components/finance/icon-map";
 import { useAppStore } from "@/lib/store";
 import { formatINR, formatPercent } from "@/lib/calculations";
 import { budgetLinesForMonth, getCurrentMonthKey, monthLabel, previousMonthKeys, totalSpendForMonth } from "@/lib/selectors";
+import type { Budget } from "@/lib/types";
 
 export default function BudgetPage() {
   const { budgets, transactions, categories, deleteBudget } = useAppStore();
   const currentMonth = getCurrentMonthKey();
   const lines = budgetLinesForMonth(budgets, transactions, categories, currentMonth);
+  const [mobileCreateOpen, setMobileCreateOpen] = React.useState(false);
+  const [mobileEditingBudget, setMobileEditingBudget] = React.useState<Budget | null>(null);
 
   const totalBudget = lines.reduce((s, l) => s + l.budget.limit, 0);
   const totalSpent = lines.reduce((s, l) => s + l.spent, 0);
@@ -36,7 +41,75 @@ export default function BudgetPage() {
   const spendChangePct = prevSpend > 0 ? ((totalSpent - prevSpend) / prevSpend) * 100 : 0;
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="wl-mobile -mx-4 -mt-5 min-h-svh bg-wl-canvas px-6 pt-3 pb-6 lg:hidden">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[28px] font-semibold leading-9 tracking-[-1.12px] text-wl-ink">Budget</p>
+          <button
+            onClick={() => setMobileCreateOpen(true)}
+            className="flex size-11 items-center justify-center rounded-lg bg-wl-surface"
+          >
+            <Plus className="size-[22px] text-wl-ink" strokeWidth={1.75} />
+          </button>
+        </div>
+        <p className="mt-3 text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-muted">{monthLabel(currentMonth)}</p>
+
+        {lines.length === 0 ? (
+          <p className="mt-6 text-center text-[14px] font-medium text-wl-muted">
+            No budgets yet — tap + to set a monthly limit for a category.
+          </p>
+        ) : (
+          <>
+            <div className="mt-3 flex flex-col gap-2">
+              <p className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-muted">Left to spend</p>
+              <p className="text-[48px] font-semibold leading-[56px] tracking-[-3.84px] text-wl-ink">{formatINR(Math.max(0, remaining))}</p>
+              <p className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">
+                {formatINR(totalSpent)} spent of {formatINR(totalBudget)} budget
+              </p>
+            </div>
+            <div className="mt-2 h-[3px] w-full rounded-lg bg-wl-disabled">
+              <div className="h-full rounded-lg bg-wl-accent" style={{ width: `${totalBudget > 0 ? Math.min(100, (totalSpent / totalBudget) * 100) : 0}%` }} />
+            </div>
+
+            <div className="mt-6 flex items-center justify-between">
+              <p className="text-[20px] font-semibold leading-7 tracking-[-0.8px] text-wl-ink">Your categories</p>
+            </div>
+            <div className="mt-3 flex flex-col gap-3">
+              {lines.map((line) => (
+                <button
+                  key={line.budget.id}
+                  onClick={() => setMobileEditingBudget(line.budget)}
+                  className="flex flex-col gap-3 rounded-lg bg-wl-surface p-4 text-left"
+                >
+                  <div className="flex items-center justify-between text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">
+                    <span>{line.category.name}</span>
+                    <span>
+                      {formatINR(line.spent)} / {formatINR(line.budget.limit)}
+                    </span>
+                  </div>
+                  <div className="h-[3px] w-full rounded-lg bg-wl-disabled">
+                    <div className="h-full rounded-lg bg-wl-accent" style={{ width: `${Math.min(100, line.pct)}%` }} />
+                  </div>
+                  <p className={`text-[12px] font-medium leading-4 tracking-[-0.48px] ${line.remaining >= 0 ? "text-wl-muted" : "text-wl-error"}`}>
+                    {line.remaining >= 0 ? `${formatINR(line.remaining)} left` : `${formatINR(Math.abs(line.remaining))} over budget`}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {mobileCreateOpen && <MobileAddBudgetSheet open={mobileCreateOpen} onOpenChange={setMobileCreateOpen} />}
+      {mobileEditingBudget && (
+        <MobileAddBudgetSheet
+          open={!!mobileEditingBudget}
+          onOpenChange={(v) => !v && setMobileEditingBudget(null)}
+          editBudget={mobileEditingBudget}
+        />
+      )}
+
+      <div className="hidden space-y-6 lg:block">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Budget</h1>
@@ -143,6 +216,7 @@ export default function BudgetPage() {
         })}
       </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }
