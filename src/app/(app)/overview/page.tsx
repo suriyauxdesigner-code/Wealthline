@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Landmark, LineChart, PiggyBank, TrendingUp, Wallet } from "lucide-react";
+import { ArrowDown, ArrowLeftRight, Landmark, LineChart, Plus, PiggyBank, TrendingUp, Wallet } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 import { AddTransactionDialog } from "@/components/add-transaction-dialog";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import { MetricCard } from "@/components/finance/metric-card";
 import { CashFlowFunnel } from "@/components/finance/cash-flow-funnel";
 import { SpendingBreakdownChart } from "@/components/finance/spending-breakdown-chart";
 import { TransactionRow } from "@/components/finance/transaction-row";
+import { MobileTransactionRow } from "@/components/finance/mobile-transaction-row";
 import { InsightCard } from "@/components/finance/insight-card";
 import { EmptyState } from "@/components/finance/empty-state";
 import { DateRangeSelect, type RangeOption } from "@/components/finance/date-range-select";
@@ -22,6 +24,15 @@ import { calcNetWorthBreakdown } from "@/lib/net-worth-selectors";
 import { cashFlowForRange, getCurrentMonthKey, resolvePeriod, spendByCategoryForRange } from "@/lib/selectors";
 import { generateInsights } from "@/lib/insights";
 
+function QuickActionTile({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
+  return (
+    <div className="flex h-[112px] flex-1 flex-col items-start justify-between rounded-lg bg-wl-surface p-4">
+      <Icon className="size-6 text-wl-ink" strokeWidth={1.75} />
+      <span className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">{label}</span>
+    </div>
+  );
+}
+
 function greeting(): string {
   const h = new Date().getHours();
   if (h < 12) return "Good morning";
@@ -30,7 +41,7 @@ function greeting(): string {
 }
 
 export default function OverviewPage() {
-  const { transactions, accounts, categories, budgets, liabilities, otherAssets, fireProfile } = useAppStore();
+  const { transactions, accounts, categories, budgets, liabilities, otherAssets, fireProfile, goals } = useAppStore();
   const authUser = useAuthUser();
   const [range, setRange] = React.useState<RangeOption>("this-month");
   const [customRange, setCustomRange] = React.useState(() => {
@@ -53,6 +64,14 @@ export default function OverviewPage() {
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 6);
 
+  // Home (mobile) always shows "this month", independent of the desktop
+  // period selector above.
+  const thisMonth = resolvePeriod("this-month", today);
+  const thisMonthCashFlow = cashFlowForRange(transactions, thisMonth.start, thisMonth.end);
+  const primaryGoal = goals[0];
+  const goalPct = primaryGoal && primaryGoal.targetAmount > 0 ? Math.min(100, (primaryGoal.currentAmount / primaryGoal.targetAmount) * 100) : 0;
+  const firstName = displayName(authUser).split(" ")[0];
+
   const insights = generateInsights({
     transactions,
     categories,
@@ -64,11 +83,85 @@ export default function OverviewPage() {
   }).slice(0, 3);
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="wl-mobile -mx-4 -mt-5 min-h-svh bg-wl-canvas px-6 pt-3 pb-6 lg:hidden">
+        <div className="flex items-center justify-between">
+          <p className="text-[20px] font-semibold leading-7 tracking-[-0.8px] text-wl-ink">Wealthline</p>
+          <div className="flex size-10 items-center justify-center rounded-full bg-wl-surface text-[14px] font-semibold text-wl-ink">
+            {firstName.charAt(0).toUpperCase()}
+          </div>
+        </div>
+        <h1 className="mt-3 text-[28px] font-semibold leading-9 tracking-[-1.12px] text-wl-ink">Hello, {firstName}</h1>
+
+        {accounts.length === 0 ? (
+          <div className="mt-3 rounded-lg bg-wl-surface p-4">
+            <p className="text-[16px] font-semibold leading-6 tracking-[-0.32px] text-wl-ink">Your story starts here</p>
+            <p className="mt-1 text-[14px] font-medium leading-5 tracking-[-0.56px] text-wl-muted">
+              Add an account, then record your first income or expense.
+            </p>
+            <Link
+              href="/accounts"
+              className="mt-4 flex h-[52px] items-center justify-center rounded-lg bg-wl-accent px-6 text-[15px] font-semibold tracking-[-0.6px] text-white"
+            >
+              Add your first account
+            </Link>
+          </div>
+        ) : (
+          <>
+            <div className="mt-3">
+              <p className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-muted">Remaining this month</p>
+              <p className="text-[64px] font-semibold leading-[72px] tracking-[-3.84px] text-wl-ink">{formatINR(thisMonthCashFlow.remaining)}</p>
+              <p className="mt-1 text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-muted">
+                {thisMonth.start.toLocaleDateString("en-IN", { month: "long", year: "numeric" })}
+              </p>
+            </div>
+
+            <div className="mt-3 flex gap-2">
+              <AddTransactionDialog defaultType="expense" trigger={<QuickActionTile icon={Plus} label="Expense" />} />
+              <AddTransactionDialog defaultType="income" trigger={<QuickActionTile icon={ArrowDown} label="Income" />} />
+              <AddTransactionDialog defaultType="transfer" trigger={<QuickActionTile icon={ArrowLeftRight} label="Transfer" />} />
+            </div>
+
+            {primaryGoal && (
+              <Link href="/goals" className="mt-3 block rounded-lg bg-wl-surface p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">{primaryGoal.name}</p>
+                  <p className="shrink-0 text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">
+                    {formatINR(primaryGoal.currentAmount)} / {formatINR(primaryGoal.targetAmount)}
+                  </p>
+                </div>
+                <div className="mt-3 h-[3px] w-full bg-wl-disabled">
+                  <div className="h-full bg-wl-accent" style={{ width: `${goalPct}%` }} />
+                </div>
+              </Link>
+            )}
+
+            <div className="mt-3">
+              <div className="flex items-center justify-between">
+                <p className="text-[16px] font-semibold leading-6 tracking-[-0.32px] text-wl-ink">Recent activity</p>
+                <Link href="/transactions" className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-muted">
+                  See all
+                </Link>
+              </div>
+              {recentTransactions.length === 0 ? (
+                <p className="mt-3 text-[14px] font-medium leading-5 text-wl-muted">No activity yet.</p>
+              ) : (
+                <div className="mt-1 divide-y divide-wl-border">
+                  {recentTransactions.slice(0, 3).map((t) => (
+                    <MobileTransactionRow key={t.id} transaction={t} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="hidden space-y-6 lg:block">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">
-            {greeting()}, {displayName(authUser).split(" ")[0]}
+            {greeting()}, {firstName}
           </h1>
           <p className="text-sm text-muted-foreground">
             {today.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
@@ -161,6 +254,7 @@ export default function OverviewPage() {
           <Link href="/reports">See full financial reports →</Link>
         </Button>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

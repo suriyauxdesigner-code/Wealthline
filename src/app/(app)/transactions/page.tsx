@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Download, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { ChevronDown, Download, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
 
 import { AddTransactionDialog } from "@/components/add-transaction-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +30,8 @@ import { FilterBar } from "@/components/finance/filter-bar";
 import { resolveIcon } from "@/components/finance/icon-map";
 import { useAppStore } from "@/lib/store";
 import { formatINR } from "@/lib/calculations";
+import { isInRange, resolvePeriod } from "@/lib/selectors";
+import { cn } from "@/lib/utils";
 import type { Category, Transaction, TransactionType } from "@/lib/types";
 import { ArrowLeftRight } from "lucide-react";
 import { toast } from "sonner";
@@ -71,6 +73,10 @@ export default function TransactionsPage() {
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [page, setPage] = React.useState(1);
   const [editing, setEditing] = React.useState<Transaction | null>(null);
+  // Mobile Activity's own "Period" row — independent of desktop's filters.
+  const [mobileShowAllTime, setMobileShowAllTime] = React.useState(false);
+  const today = new Date();
+  const thisMonth = resolvePeriod("this-month", today);
 
   const activeCount = [type !== "all", categoryId !== "all", accountId !== "all", !!minAmount, !!maxAmount].filter(
     Boolean
@@ -96,6 +102,22 @@ export default function TransactionsPage() {
   const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   React.useEffect(() => setPage(1), [search, type, categoryId, accountId, minAmount, maxAmount]);
+
+  // Mobile only: `filtered` already applies search + type (categoryId/
+  // accountId/amount stay "all" there, since mobile has no controls for
+  // them); this layers the Period toggle on top and groups by day.
+  const mobileFiltered = mobileShowAllTime
+    ? filtered
+    : filtered.filter((t) => isInRange(t, thisMonth.start, thisMonth.end));
+  const mobileGroups: { label: string; items: Transaction[] }[] = [];
+  for (const t of mobileFiltered) {
+    const d = new Date(t.date + "T00:00:00");
+    const isToday = d.toDateString() === today.toDateString();
+    const label = isToday ? "Today" : d.toLocaleDateString("en-IN", { day: "numeric", month: "long" });
+    const lastGroup = mobileGroups[mobileGroups.length - 1];
+    if (lastGroup && lastGroup.label === label) lastGroup.items.push(t);
+    else mobileGroups.push({ label, items: [t] });
+  }
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -135,7 +157,111 @@ export default function TransactionsPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <>
+      <div className="wl-mobile -mx-4 -mt-5 min-h-svh bg-wl-canvas px-6 pt-3 pb-6 lg:hidden">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[28px] font-semibold leading-9 tracking-[-1.12px] text-wl-ink">Activity</p>
+          <AddTransactionDialog trigger={
+            <button className="flex size-11 items-center justify-center rounded-lg bg-wl-surface">
+              <Plus className="size-[22px] text-wl-ink" strokeWidth={1.75} />
+            </button>
+          } />
+        </div>
+
+        <button
+          onClick={() => setMobileShowAllTime((v) => !v)}
+          className="mt-3 flex h-16 w-full items-center justify-between text-left"
+        >
+          <div>
+            <p className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">Period</p>
+            <p className="text-[16px] font-semibold leading-6 tracking-[-0.32px] text-wl-ink">
+              {mobileShowAllTime ? "All time" : thisMonth.start.toLocaleDateString("en-IN", { month: "long", year: "numeric" })}
+            </p>
+          </div>
+          <ChevronDown className="size-[18px] text-wl-muted" />
+        </button>
+
+        <div className="mt-3 flex gap-1 rounded-xl bg-wl-surface p-1">
+          {(["all", "expense", "income"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setType(t)}
+              className={cn(
+                "flex-1 rounded-lg py-3 text-[14px] font-semibold capitalize leading-5 tracking-[-0.56px]",
+                type === t ? "bg-wl-disabled text-wl-ink" : "text-wl-muted"
+              )}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-3 flex h-12 items-center gap-3 rounded-lg bg-wl-surface pl-4">
+          <Search className="size-5 text-wl-muted" strokeWidth={1.75} />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search transactions"
+            className="h-full flex-1 bg-transparent pr-4 text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink placeholder:text-wl-muted focus:outline-none"
+          />
+        </div>
+
+        {mobileGroups.length === 0 ? (
+          <p className="mt-6 text-center text-[14px] font-medium text-wl-muted">No transactions found.</p>
+        ) : (
+          mobileGroups.map((group) => (
+            <div key={group.label} className="mt-3">
+              <p className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-muted">{group.label}</p>
+              <div className="mt-1 divide-y divide-wl-border">
+                {group.items.map((t) => {
+                  const category = getCategory(t.categoryId);
+                  const account = getAccount(t.accountId);
+                  const isPositive = t.type === "income";
+                  const sign = isPositive ? "+" : t.type === "expense" ? "−" : "";
+                  return (
+                    <div key={t.id} className="flex h-[72px] items-center gap-3">
+                      {resolveIcon(category.icon)({ className: "size-6 shrink-0 text-wl-ink", strokeWidth: 1.75 })}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[16px] font-semibold leading-6 tracking-[-0.32px] text-wl-ink">{t.merchant}</p>
+                        <p className="truncate text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">
+                          {category.name} · {account?.name ?? "—"}
+                        </p>
+                      </div>
+                      <p className="shrink-0 text-[16px] font-semibold leading-6 tracking-[-0.32px] text-wl-ink">
+                        {sign}
+                        {formatINR(t.amount)}
+                      </p>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="shrink-0 p-1 text-wl-muted">
+                            <MoreHorizontal className="size-[18px]" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setEditing(t)}>
+                            <Pencil /> Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => {
+                              deleteTransaction(t.id);
+                              toast.success("Transaction deleted");
+                            }}
+                          >
+                            <Trash2 /> Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="hidden space-y-5 lg:block">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Transactions</h1>
@@ -390,6 +516,7 @@ export default function TransactionsPage() {
           onOpenChange={(v) => !v && setEditing(null)}
         />
       )}
-    </div>
+      </div>
+    </>
   );
 }

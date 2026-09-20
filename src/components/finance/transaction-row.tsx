@@ -14,7 +14,7 @@ const FALLBACK_CATEGORY: Category = {
   color: "chart-9",
 };
 
-function formatRelativeDate(dateIso: string): string {
+export function formatRelativeDate(dateIso: string): string {
   const date = new Date(dateIso + "T00:00:00");
   const today = new Date();
   today.setHours(0, 0, 0, 0);

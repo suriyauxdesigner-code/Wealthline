@@ -115,7 +115,32 @@
   --sidebar-border: oklch(1 0 0 / 10%);
 }
 
+/* Mobile redesign (Figma "wealthline 2.0") — scoped to .wl-mobile so it
+   never touches the desktop palette/typography above. Light-only by
+   design: the redesign has no dark-mode frames, so mobile does not offer
+   the theme toggle (see Topbar / ModeToggle, hidden below lg). */
+.wl-mobile {
+  --wl-canvas: #f7f7f7;
+  --wl-surface: #ffffff;
+  --wl-accent: #e87500;
+  --wl-accent-text: #a74e00;
+  --wl-disabled: #dcdcdd;
+  --wl-ink: #191919;
+  --wl-muted: #69696f;
+  --wl-border: #e7e7e8;
+  font-family: var(--font-manrope-mobile), sans-serif;
+}
+
 @theme inline {
+  --color-wl-canvas: var(--wl-canvas);
+  --color-wl-surface: var(--wl-surface);
+  --color-wl-accent: var(--wl-accent);
+  --color-wl-accent-text: var(--wl-accent-text);
+  --color-wl-disabled: var(--wl-disabled);
+  --color-wl-ink: var(--wl-ink);
+  --color-wl-muted: var(--wl-muted);
+  --color-wl-border: var(--wl-border);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
