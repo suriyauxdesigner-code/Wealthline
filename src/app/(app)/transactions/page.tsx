@@ -4,6 +4,7 @@ import * as React from "react";
 import { ChevronDown, Download, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
 
 import { AddTransactionDialog } from "@/components/add-transaction-dialog";
+import { MobileAddTransactionSheet } from "@/components/mobile/add-transaction-sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -73,6 +74,8 @@ export default function TransactionsPage() {
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [page, setPage] = React.useState(1);
   const [editing, setEditing] = React.useState<Transaction | null>(null);
+  const [mobileCreateOpen, setMobileCreateOpen] = React.useState(false);
+  const [mobileEditing, setMobileEditing] = React.useState<Transaction | null>(null);
   // Mobile Activity's own "Period" row — independent of desktop's filters.
   const [mobileShowAllTime, setMobileShowAllTime] = React.useState(false);
   const today = new Date();
@@ -161,11 +164,12 @@ export default function TransactionsPage() {
       <div className="wl-mobile -mx-4 -mt-5 min-h-svh bg-wl-canvas px-6 pt-3 pb-6 lg:hidden">
         <div className="flex items-center justify-between gap-3">
           <p className="text-[28px] font-semibold leading-9 tracking-[-1.12px] text-wl-ink">Activity</p>
-          <AddTransactionDialog trigger={
-            <button className="flex size-11 items-center justify-center rounded-lg bg-wl-surface">
-              <Plus className="size-[22px] text-wl-ink" strokeWidth={1.75} />
-            </button>
-          } />
+          <button
+            onClick={() => setMobileCreateOpen(true)}
+            className="flex size-11 items-center justify-center rounded-lg bg-wl-surface"
+          >
+            <Plus className="size-[22px] text-wl-ink" strokeWidth={1.75} />
+          </button>
         </div>
 
         <button
@@ -238,9 +242,11 @@ export default function TransactionsPage() {
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setEditing(t)}>
-                            <Pencil /> Edit
-                          </DropdownMenuItem>
+                          {t.type !== "investment" && (
+                            <DropdownMenuItem onClick={() => setMobileEditing(t)}>
+                              <Pencil /> Edit
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem
                             variant="destructive"
                             onClick={() => {
@@ -260,6 +266,17 @@ export default function TransactionsPage() {
           ))
         )}
       </div>
+
+      {mobileCreateOpen && (
+        <MobileAddTransactionSheet open={mobileCreateOpen} onOpenChange={setMobileCreateOpen} defaultType="expense" />
+      )}
+      {mobileEditing && (
+        <MobileAddTransactionSheet
+          open={!!mobileEditing}
+          onOpenChange={(v) => !v && setMobileEditing(null)}
+          editTransaction={mobileEditing}
+        />
+      )}
 
       <div className="hidden space-y-5 lg:block">
       <div className="flex items-center justify-between">

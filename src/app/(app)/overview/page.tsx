@@ -6,6 +6,7 @@ import { ArrowDown, ArrowLeftRight, Landmark, LineChart, Plus, PiggyBank, Trendi
 import type { LucideIcon } from "lucide-react";
 
 import { AddTransactionDialog } from "@/components/add-transaction-dialog";
+import { MobileAddTransactionSheet } from "@/components/mobile/add-transaction-sheet";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -24,12 +25,14 @@ import { calcNetWorthBreakdown } from "@/lib/net-worth-selectors";
 import { cashFlowForRange, getCurrentMonthKey, resolvePeriod, spendByCategoryForRange } from "@/lib/selectors";
 import { generateInsights } from "@/lib/insights";
 
-function QuickActionTile({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
+type MobileQuickActionType = "expense" | "income" | "transfer";
+
+function QuickActionTile({ icon: Icon, label, onClick }: { icon: LucideIcon; label: string; onClick: () => void }) {
   return (
-    <div className="flex h-[112px] flex-1 flex-col items-start justify-between rounded-lg bg-wl-surface p-4">
+    <button type="button" onClick={onClick} className="flex h-[112px] flex-1 flex-col items-start justify-between rounded-lg bg-wl-surface p-4 text-left">
       <Icon className="size-6 text-wl-ink" strokeWidth={1.75} />
       <span className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">{label}</span>
-    </div>
+    </button>
   );
 }
 
@@ -43,6 +46,7 @@ function greeting(): string {
 export default function OverviewPage() {
   const { transactions, accounts, categories, budgets, liabilities, otherAssets, fireProfile, goals } = useAppStore();
   const authUser = useAuthUser();
+  const [mobileSheetType, setMobileSheetType] = React.useState<MobileQuickActionType | null>(null);
   const [range, setRange] = React.useState<RangeOption>("this-month");
   const [customRange, setCustomRange] = React.useState(() => {
     const today = new Date();
@@ -117,9 +121,9 @@ export default function OverviewPage() {
             </div>
 
             <div className="mt-3 flex gap-2">
-              <AddTransactionDialog defaultType="expense" trigger={<QuickActionTile icon={Plus} label="Expense" />} />
-              <AddTransactionDialog defaultType="income" trigger={<QuickActionTile icon={ArrowDown} label="Income" />} />
-              <AddTransactionDialog defaultType="transfer" trigger={<QuickActionTile icon={ArrowLeftRight} label="Transfer" />} />
+              <QuickActionTile icon={Plus} label="Expense" onClick={() => setMobileSheetType("expense")} />
+              <QuickActionTile icon={ArrowDown} label="Income" onClick={() => setMobileSheetType("income")} />
+              <QuickActionTile icon={ArrowLeftRight} label="Transfer" onClick={() => setMobileSheetType("transfer")} />
             </div>
 
             {primaryGoal && (
@@ -156,6 +160,14 @@ export default function OverviewPage() {
           </>
         )}
       </div>
+
+      {mobileSheetType && (
+        <MobileAddTransactionSheet
+          open={!!mobileSheetType}
+          onOpenChange={(v) => !v && setMobileSheetType(null)}
+          defaultType={mobileSheetType}
+        />
+      )}
 
       <div className="hidden space-y-6 lg:block">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
