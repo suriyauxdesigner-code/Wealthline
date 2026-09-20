@@ -1,10 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { CreditCard, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { CreditCard, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AddLiabilityDialog } from "@/components/add-liability-dialog";
+import { MobileAddLiabilitySheet } from "@/components/mobile/add-liability-sheet";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -32,6 +33,8 @@ const TYPE_LABEL: Record<string, string> = {
 export default function DebtsPage() {
   const { liabilities, deleteLiability } = useAppStore();
   const [editing, setEditing] = React.useState<Liability | null>(null);
+  const [mobileCreateOpen, setMobileCreateOpen] = React.useState(false);
+  const [mobileEditing, setMobileEditing] = React.useState<Liability | null>(null);
 
   const totalOutstanding = liabilities.reduce((s, l) => s + l.outstanding, 0);
   const totalMonthlyPayment = liabilities.reduce((s, l) => s + l.monthlyPayment, 0);
@@ -42,7 +45,72 @@ export default function DebtsPage() {
       : 0;
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="wl-mobile -mx-4 -mt-5 min-h-svh bg-wl-canvas px-6 pt-3 pb-6 lg:hidden">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[28px] font-semibold leading-9 tracking-[-1.12px] text-wl-ink">Debts</p>
+          <button
+            onClick={() => setMobileCreateOpen(true)}
+            className="flex size-11 items-center justify-center rounded-lg bg-wl-surface"
+          >
+            <Plus className="size-[22px] text-wl-ink" strokeWidth={1.75} />
+          </button>
+        </div>
+
+        {liabilities.length === 0 ? (
+          <p className="mt-6 text-center text-[14px] font-medium text-wl-muted">
+            No debts yet — tap + to add a loan or credit card.
+          </p>
+        ) : (
+          <>
+            <p className="mt-3 text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-muted">Total outstanding</p>
+            <p className="text-[48px] font-semibold leading-[56px] tracking-[-3.84px] text-wl-ink">{formatINR(totalOutstanding)}</p>
+            <p className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">
+              {formatINR(totalMonthlyPayment)} in monthly payments
+            </p>
+
+            <div className="mt-6 flex items-center justify-between">
+              <p className="text-[20px] font-semibold leading-7 tracking-[-0.8px] text-wl-ink">Your liabilities</p>
+              <p className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-muted">{liabilities.length} debts</p>
+            </div>
+            <div className="mt-3 flex flex-col gap-3">
+              {liabilities.map((l) => {
+                const paidOffPct = l.principal > 0 ? Math.min(100, ((l.principal - l.outstanding) / l.principal) * 100) : 0;
+                return (
+                  <button
+                    key={l.id}
+                    onClick={() => setMobileEditing(l)}
+                    className="flex flex-col gap-3 rounded-lg bg-wl-surface p-4 text-left"
+                  >
+                    <div className="flex items-center justify-between text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">
+                      <span>{l.name}</span>
+                      <span>{formatINR(l.outstanding)}</span>
+                    </div>
+                    <p className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">
+                      {formatINR(l.monthlyPayment)} / month · {TYPE_LABEL[l.type] ?? l.type}
+                    </p>
+                    <div className="h-[3px] w-full rounded-lg bg-wl-disabled">
+                      <div className="h-full rounded-lg bg-wl-accent" style={{ width: `${paidOffPct}%` }} />
+                    </div>
+                    <p className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">{paidOffPct.toFixed(0)}% paid off</p>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+
+      {mobileCreateOpen && <MobileAddLiabilitySheet open={mobileCreateOpen} onOpenChange={setMobileCreateOpen} />}
+      {mobileEditing && (
+        <MobileAddLiabilitySheet
+          open={!!mobileEditing}
+          onOpenChange={(v) => !v && setMobileEditing(null)}
+          editLiability={mobileEditing}
+        />
+      )}
+
+      <div className="hidden space-y-6 lg:block">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Debts</h1>
@@ -143,6 +211,7 @@ export default function DebtsPage() {
           onOpenChange={(v) => !v && setEditing(null)}
         />
       )}
-    </div>
+      </div>
+    </>
   );
 }

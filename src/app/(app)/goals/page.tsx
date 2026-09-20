@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 
 import { AddGoalDialog } from "@/components/add-goal-dialog";
+import { MobileAddGoalSheet } from "@/components/mobile/add-goal-sheet";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -24,9 +25,61 @@ import { toast } from "sonner";
 export default function GoalsPage() {
   const { goals, deleteGoal } = useAppStore();
   const [editing, setEditing] = React.useState<Goal | null>(null);
+  const [mobileCreateOpen, setMobileCreateOpen] = React.useState(false);
+  const [mobileEditing, setMobileEditing] = React.useState<Goal | null>(null);
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="wl-mobile -mx-4 -mt-5 min-h-svh bg-wl-canvas px-6 pt-3 pb-6 lg:hidden">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[28px] font-semibold leading-9 tracking-[-1.12px] text-wl-ink">Goals</p>
+          <button
+            onClick={() => setMobileCreateOpen(true)}
+            className="flex size-11 items-center justify-center rounded-lg bg-wl-surface"
+          >
+            <Plus className="size-[22px] text-wl-ink" strokeWidth={1.75} />
+          </button>
+        </div>
+        <p className="mt-3 text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-muted">Make room for what matters.</p>
+
+        {goals.length === 0 ? (
+          <p className="mt-6 text-center text-[14px] font-medium text-wl-muted">No goals yet — tap + to start one.</p>
+        ) : (
+          <div className="mt-3 flex flex-col gap-3">
+            {goals.map((goal) => {
+              const progress = calcGoalProgress(goal.currentAmount, goal.targetAmount);
+              const required = calcRequiredMonthlyContribution(goal.currentAmount, goal.targetAmount, goal.targetDate);
+              const targetDateLabel = new Date(goal.targetDate).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+              return (
+                <button
+                  key={goal.id}
+                  onClick={() => setMobileEditing(goal)}
+                  className="flex flex-col gap-1 rounded-lg bg-wl-surface p-4 text-left"
+                >
+                  <p className="text-[16px] font-semibold leading-6 tracking-[-0.32px] text-wl-ink">{goal.name}</p>
+                  <p className="text-[28px] font-semibold leading-9 tracking-[-1.12px] text-wl-ink">{formatINR(goal.currentAmount)}</p>
+                  <p className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">
+                    of {formatINR(goal.targetAmount)} · {targetDateLabel}
+                  </p>
+                  <div className="mt-1 h-[3px] w-full rounded-lg bg-wl-disabled">
+                    <div className="h-full rounded-lg bg-wl-accent" style={{ width: `${progress}%` }} />
+                  </div>
+                  <p className="mt-1 text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">
+                    {goal.monthlyContribution > 0 ? `${formatINR(required)} / month to reach your goal` : "Set a monthly contribution"}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {mobileCreateOpen && <MobileAddGoalSheet open={mobileCreateOpen} onOpenChange={setMobileCreateOpen} />}
+      {mobileEditing && (
+        <MobileAddGoalSheet open={!!mobileEditing} onOpenChange={(v) => !v && setMobileEditing(null)} editGoal={mobileEditing} />
+      )}
+
+      <div className="hidden space-y-6 lg:block">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Goals</h1>
@@ -119,6 +172,7 @@ export default function GoalsPage() {
           onOpenChange={(v) => !v && setEditing(null)}
         />
       )}
-    </div>
+      </div>
+    </>
   );
 }

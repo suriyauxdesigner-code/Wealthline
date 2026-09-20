@@ -48,7 +48,49 @@ export default function NetWorthPage() {
   }));
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="wl-mobile -mx-4 -mt-5 min-h-svh bg-wl-canvas px-6 pt-3 pb-6 lg:hidden">
+        <p className="text-[28px] font-semibold leading-9 tracking-[-1.12px] text-wl-ink">Net worth</p>
+        <p className="mt-3 text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-muted">Your net worth</p>
+        <p className={`text-[48px] font-semibold leading-[56px] tracking-[-3.84px] ${breakdown.netWorth < 0 ? "text-wl-error" : "text-wl-ink"}`}>
+          {breakdown.netWorth < 0 ? "−" : ""}
+          {formatINR(Math.abs(breakdown.netWorth))}
+        </p>
+        <p className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">Assets minus outstanding debt</p>
+
+        <div className="mt-3 flex flex-col gap-3 rounded-lg bg-wl-surface p-4">
+          <p className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">Assets</p>
+          {assetRows.map((r) => (
+            <div key={r.label} className="flex items-center justify-between">
+              <span className="text-[14px] font-medium leading-5 tracking-[-0.56px] text-wl-muted">{r.label}</span>
+              <span className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">{formatINR(r.value)}</span>
+            </div>
+          ))}
+          <div className="flex items-center justify-between border-t border-wl-border pt-3">
+            <span className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">Total assets</span>
+            <span className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">{formatINR(breakdown.totalAssets)}</span>
+          </div>
+        </div>
+
+        <div className="mt-3 flex flex-col gap-3 rounded-lg bg-wl-surface p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">Liabilities</span>
+            <span className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">{formatINR(breakdown.totalLiabilities)}</span>
+          </div>
+          <Link href="/debts" className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-accent-text">
+            View debts →
+          </Link>
+        </div>
+
+        <div className="mt-3 flex flex-col gap-1 rounded-lg bg-wl-surface p-4">
+          <p className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">Your history starts here</p>
+          <p className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">
+            Monthly snapshots will show how your net worth changes over time.
+          </p>
+        </div>
+      </div>
+
+      <div className="hidden space-y-6 lg:block">
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Net Worth</h1>
         <p className="text-sm text-muted-foreground">Assets − Liabilities = Net Worth</p>
@@ -170,7 +212,8 @@ export default function NetWorthPage() {
           onOpenChange={(v) => !v && setEditingAsset(null)}
         />
       )}
-    </div>
+      </div>
+    </>
   );
 }
 
