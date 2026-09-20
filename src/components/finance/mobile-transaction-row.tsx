@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 
 import { formatINR } from "@/lib/calculations";
@@ -30,7 +31,7 @@ export function MobileTransactionRow({ transaction }: { transaction: Transaction
 
   return (
     <Link href="/transactions" className="flex h-[72px] items-center gap-3">
-      {resolveIcon(category.icon)({ className: "size-6 shrink-0 text-wl-ink", strokeWidth: 1.75 })}
+      {React.createElement(resolveIcon(category.icon), { className: "size-6 shrink-0 text-wl-ink", strokeWidth: 1.75 })}
       <div className="min-w-0 flex-1">
         <p className="truncate text-[16px] font-semibold leading-6 tracking-[-0.32px] text-wl-ink">{transaction.merchant}</p>
         <p className="truncate text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">
