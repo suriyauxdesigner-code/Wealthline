@@ -25,7 +25,7 @@ import type { Account, AccountGroup, AccountType } from "@/lib/types";
 // EPF, PPF, and Crypto belong to individual holdings (see Investments' own
 // "Asset class" field) rather than to the account itself, so they aren't
 // offered here.
-const TYPE_OPTIONS: { group: AccountGroup; type: AccountType; label: string }[] = [
+export const ACCOUNT_TYPE_OPTIONS: { group: AccountGroup; type: AccountType; label: string }[] = [
   { group: "cash", type: "cash_wallet", label: "Cash wallet" },
   { group: "bank", type: "savings", label: "Savings account" },
   { group: "bank", type: "current", label: "Current account" },
@@ -37,18 +37,18 @@ const TYPE_OPTIONS: { group: AccountGroup; type: AccountType; label: string }[] 
 // this list (e.g. an old "Gold" or "PPF" account) must keep showing and
 // saving its real type when edited — falling back to index 0 would silently
 // rewrite it to "Cash wallet" the next time someone hits Save.
-function typeOptionsFor(editAccount?: Account) {
-  if (editAccount && !TYPE_OPTIONS.some((o) => o.group === editAccount.group && o.type === editAccount.type)) {
+export function typeOptionsFor(editAccount?: Account) {
+  if (editAccount && !ACCOUNT_TYPE_OPTIONS.some((o) => o.group === editAccount.group && o.type === editAccount.type)) {
     const legacyLabel = editAccount.type
       .split("_")
       .map((w) => w[0].toUpperCase() + w.slice(1))
       .join(" ");
-    return [...TYPE_OPTIONS, { group: editAccount.group, type: editAccount.type, label: legacyLabel }];
+    return [...ACCOUNT_TYPE_OPTIONS, { group: editAccount.group, type: editAccount.type, label: legacyLabel }];
   }
-  return TYPE_OPTIONS;
+  return ACCOUNT_TYPE_OPTIONS;
 }
 
-function typeIndexFor(options: typeof TYPE_OPTIONS, group: AccountGroup, type: AccountType): string {
+export function typeIndexFor(options: typeof ACCOUNT_TYPE_OPTIONS, group: AccountGroup, type: AccountType): string {
   const i = options.findIndex((o) => o.group === group && o.type === type);
   return String(i === -1 ? 0 : i);
 }

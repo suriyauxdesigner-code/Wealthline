@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { FireProjectionChart } from "@/components/finance/fire-projection-chart";
 import { FinancialHealthCard } from "@/components/finance/financial-health-card";
+import { MobileFireAssumptionsSheet } from "@/components/mobile/fire-assumptions-sheet";
 import { useAppStore } from "@/lib/store";
 import { formatINR, formatPercent, projectFire, calcFinancialHealth } from "@/lib/calculations";
 import { cashFlowForMonth, getCurrentMonthKey, totalSpendForMonth } from "@/lib/selectors";
@@ -16,6 +17,7 @@ import { cn } from "@/lib/utils";
 
 export default function FirePage() {
   const { fireProfile, updateFireProfile, accounts, liabilities, transactions } = useAppStore();
+  const [mobileEditOpen, setMobileEditOpen] = React.useState(false);
 
   const investmentsTotal = accounts
     .filter((a) => a.group === "investment" || a.group === "other")
@@ -72,7 +74,48 @@ export default function FirePage() {
   const yearsGap = projection.fireAge !== null ? Math.abs(projection.fireAge - fireProfile.targetAge) : null;
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="wl-mobile -mx-4 -mt-5 min-h-svh bg-wl-canvas px-6 pt-3 pb-6 lg:hidden">
+        <p className="text-[28px] font-semibold leading-9 tracking-[-1.12px] text-wl-ink">FIRE planner</p>
+        <p className="mt-3 text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-muted">Financial independence, at your pace.</p>
+        <p className="mt-3 text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-muted">Target in today&apos;s money</p>
+        <p className="text-[48px] font-semibold leading-[56px] tracking-[-3.84px] text-wl-ink">{formatINR(projection.fireNumberToday, { compact: true })}</p>
+        <p className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">Illustrative scenario · Not a guaranteed outcome</p>
+
+        <div className="mt-3 flex flex-col gap-3 rounded-lg bg-wl-surface p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-[14px] font-medium leading-5 tracking-[-0.56px] text-wl-muted">Current age</span>
+            <span className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">{fireProfile.currentAge}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[14px] font-medium leading-5 tracking-[-0.56px] text-wl-muted">Target retirement age</span>
+            <span className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">{fireProfile.targetAge}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[14px] font-medium leading-5 tracking-[-0.56px] text-wl-muted">Monthly retirement spending</span>
+            <span className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">{formatINR(monthlyExpenses)}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[14px] font-medium leading-5 tracking-[-0.56px] text-wl-muted">Withdrawal rate</span>
+            <span className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">{formatPercent(fireProfile.withdrawalRate, 1)} / year</span>
+          </div>
+        </div>
+        <p className="mt-3 text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">
+          Target = yearly spending ÷ withdrawal rate. Future rupee amounts depend on inflation.
+        </p>
+
+        <button
+          type="button"
+          onClick={() => setMobileEditOpen(true)}
+          className="mt-3 flex h-[52px] items-center justify-center rounded-lg bg-wl-accent text-[15px] font-semibold tracking-[-0.6px] text-white"
+        >
+          Edit assumptions
+        </button>
+      </div>
+
+      {mobileEditOpen && <MobileFireAssumptionsSheet open={mobileEditOpen} onOpenChange={setMobileEditOpen} />}
+
+      <div className="hidden space-y-6 lg:block">
       <div>
         <h1 className="text-xl font-semibold tracking-tight">FIRE</h1>
         <p className="text-sm text-muted-foreground">Financial Independence, Retire Early — plan and simulate your path</p>
@@ -266,7 +309,8 @@ export default function FirePage() {
         result={health}
         insight={`Your ${weakestLabel[health.weakestFactor]} is below your recommended target — that's the highest-leverage place to focus next.`}
       />
-    </div>
+      </div>
+    </>
   );
 }
 
