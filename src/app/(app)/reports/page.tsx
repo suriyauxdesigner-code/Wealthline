@@ -11,7 +11,7 @@ import { TrendChart } from "@/components/finance/trend-chart";
 import { InsightCard } from "@/components/finance/insight-card";
 import { useAppStore } from "@/lib/store";
 import { calcSavingsRate, formatINR, formatPercent } from "@/lib/calculations";
-import { cashFlowForMonth, getCurrentMonthKey, monthLabel } from "@/lib/selectors";
+import { cashFlowForMonth, getCurrentMonthKey, monthLabel, previousMonthKeys } from "@/lib/selectors";
 import { generateInsights } from "@/lib/insights";
 import { toast } from "sonner";
 
@@ -29,6 +29,10 @@ export default function ReportsPage() {
   const { transactions, budgets, categories, fireProfile, accounts } = useAppStore();
   const currentMonth = getCurrentMonthKey();
   const months = lastMonthKeys(currentMonth, 12);
+  const [mobileMonthsAgo, setMobileMonthsAgo] = React.useState(0);
+  const mobileMonth = mobileMonthsAgo === 0 ? currentMonth : previousMonthKeys(currentMonth, mobileMonthsAgo)[0];
+  const mobileCashFlow = cashFlowForMonth(transactions, mobileMonth);
+  const mobileIncomePct = mobileCashFlow.income > 0 ? (mobileCashFlow.remaining / mobileCashFlow.income) * 100 : 0;
 
   const monthlyRows = months.map((m) => {
     const cf = cashFlowForMonth(transactions, m);
@@ -78,7 +82,56 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="wl-mobile -mx-4 -mt-5 min-h-svh bg-wl-canvas px-6 pt-3 pb-6 lg:hidden">
+        <p className="text-[28px] font-semibold leading-9 tracking-[-1.12px] text-wl-ink">Reports</p>
+
+        <button
+          onClick={() => setMobileMonthsAgo((v) => (v >= 11 ? 0 : v + 1))}
+          className="mt-3 flex h-16 w-full flex-col justify-center gap-1 text-left"
+        >
+          <span className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">Period</span>
+          <span className="text-[16px] font-semibold leading-6 tracking-[-0.32px] text-wl-ink">{monthLabel(mobileMonth)}</span>
+        </button>
+
+        <p className="mt-3 text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-muted">Income left after expenses</p>
+        <p className="text-[48px] font-semibold leading-[56px] tracking-[-3.84px] text-wl-ink">{formatINR(mobileCashFlow.remaining)}</p>
+        <p className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">
+          {formatPercent(mobileIncomePct, 1)} of this month&apos;s income
+        </p>
+
+        <div className="mt-3 flex flex-col gap-3 rounded-lg bg-wl-surface p-4">
+          {(
+            [
+              ["Income", mobileCashFlow.income, mobileCashFlow.income > 0 ? 100 : 0],
+              ["Expenses", mobileCashFlow.expenses, mobileCashFlow.income > 0 ? Math.min(100, (mobileCashFlow.expenses / mobileCashFlow.income) * 100) : 0],
+              ["Invested this month", mobileCashFlow.investments, mobileCashFlow.income > 0 ? Math.min(100, (mobileCashFlow.investments / mobileCashFlow.income) * 100) : 0],
+            ] as const
+          ).map(([label, value, pct]) => (
+            <div key={label} className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">
+                <span>{label}</span>
+                <span>{formatINR(value)}</span>
+              </div>
+              <div className="h-[3px] w-full rounded-lg bg-wl-disabled">
+                <div className="h-full rounded-lg bg-wl-accent" style={{ width: `${pct}%` }} />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-3 flex flex-col gap-1 rounded-lg bg-wl-surface p-4">
+          <div className="flex items-center justify-between text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">
+            <span>Remaining this month</span>
+            <span>{formatINR(mobileCashFlow.remaining)}</span>
+          </div>
+          <p className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">Income − expenses − investment contributions</p>
+        </div>
+
+        <p className="mt-3 text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">Choose a longer period to compare recorded months.</p>
+      </div>
+
+      <div className="hidden space-y-6 lg:block">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Reports</h1>
@@ -195,6 +248,7 @@ export default function ReportsPage() {
           </Table>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </>
   );
 }
