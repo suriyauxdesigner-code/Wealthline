@@ -2,10 +2,12 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { LineChart, MoreHorizontal, Pencil, TrendingUp, Trash2 } from "lucide-react";
+import { LineChart, MoreHorizontal, Pencil, Plus, TrendingUp, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AddInvestmentDialog } from "@/components/add-investment-dialog";
+import { MobileAddInvestmentSheet } from "@/components/mobile/add-investment-sheet";
+import { MobileInvestmentContributionSheet } from "@/components/mobile/investment-contribution-sheet";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -33,6 +35,8 @@ export default function InvestmentsPage() {
   const { investments, deleteInvestment } = useAppStore();
   const holdings = holdingsWithReturns(investments);
   const [editing, setEditing] = React.useState<(typeof holdings)[number] | null>(null);
+  const [mobileCreateOpen, setMobileCreateOpen] = React.useState(false);
+  const [mobileContributeOpen, setMobileContributeOpen] = React.useState(false);
   const totalInvested = holdings.reduce((s, h) => s + h.invested, 0);
   const totalValue = holdings.reduce((s, h) => s + h.currentValue, 0);
   const totalReturn = totalValue - totalInvested;
@@ -41,7 +45,68 @@ export default function InvestmentsPage() {
   const allocation = allocationByGroup(holdings).map((g) => ({ ...g, color: GROUP_COLORS[g.name] ?? "var(--chart-9)" }));
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="wl-mobile -mx-4 -mt-5 min-h-svh bg-wl-canvas px-6 pt-3 pb-6 lg:hidden">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[28px] font-semibold leading-9 tracking-[-1.12px] text-wl-ink">Investments</p>
+          <button onClick={() => setMobileCreateOpen(true)} className="flex size-11 items-center justify-center rounded-lg bg-wl-surface">
+            <Plus className="size-[22px] text-wl-ink" strokeWidth={1.75} />
+          </button>
+        </div>
+
+        {holdings.length === 0 ? (
+          <p className="mt-6 text-center text-[14px] font-medium text-wl-muted">No investments yet — tap + to add a holding.</p>
+        ) : (
+          <>
+            <p className="mt-3 text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-muted">Portfolio value</p>
+            <p className="text-[48px] font-semibold leading-[56px] tracking-[-3.84px] text-wl-ink">{formatINR(totalValue)}</p>
+            <p className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">Updated just now</p>
+            <div className="mt-3 flex items-center justify-between rounded-lg bg-wl-surface p-4">
+              <span className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">Amount invested</span>
+              <span className={`text-[14px] font-semibold leading-5 tracking-[-0.56px] ${totalReturn >= 0 ? "text-wl-ink" : "text-wl-error"}`}>
+                {formatINR(totalInvested)}
+                {totalReturn !== 0 && ` (${totalReturn >= 0 ? "+" : "−"}${formatPercent(Math.abs(returnPct), 1)})`}
+              </span>
+            </div>
+
+            <div className="mt-6 flex items-center justify-between">
+              <p className="text-[20px] font-semibold leading-7 tracking-[-0.8px] text-wl-ink">Holdings</p>
+              <span className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-muted">{holdings.length} assets</span>
+            </div>
+            <div className="mt-3 flex flex-col gap-3">
+              {holdings.map((h) => (
+                <Link key={h.id} href={`/investments/${h.id}`} className="flex items-center justify-between rounded-lg bg-wl-surface p-4">
+                  <div className="min-w-0">
+                    <p className="truncate text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">{h.name}</p>
+                    <p className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">{ASSET_CLASS_LABEL[h.assetClass]}</p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">{formatINR(h.currentValue)}</p>
+                    <p className={`text-[12px] font-medium leading-4 tracking-[-0.48px] ${h.gain >= 0 ? "text-wl-ink" : "text-wl-error"}`}>
+                      {h.gain >= 0 ? "+" : "−"}
+                      {formatINR(Math.abs(h.gain))} ({formatPercent(h.returnPct, 1)})
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setMobileContributeOpen(true)}
+              className="mt-3 flex h-[52px] items-center justify-center rounded-lg bg-wl-accent text-[15px] font-semibold tracking-[-0.6px] text-white"
+            >
+              Record contribution
+            </button>
+            <p className="mt-3 text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">Values are based on your latest recorded prices.</p>
+          </>
+        )}
+      </div>
+
+      {mobileCreateOpen && <MobileAddInvestmentSheet open={mobileCreateOpen} onOpenChange={setMobileCreateOpen} />}
+      {mobileContributeOpen && <MobileInvestmentContributionSheet open={mobileContributeOpen} onOpenChange={setMobileContributeOpen} />}
+
+      <div className="hidden space-y-6 lg:block">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Investments</h1>
@@ -216,6 +281,7 @@ export default function InvestmentsPage() {
           onOpenChange={(v) => !v && setEditing(null)}
         />
       )}
-    </div>
+      </div>
+    </>
   );
 }

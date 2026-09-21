@@ -9,6 +9,8 @@ import { toast } from "sonner";
 
 import { AddInvestmentDialog } from "@/components/add-investment-dialog";
 import { LogInvestmentTransactionDialog } from "@/components/log-investment-transaction-dialog";
+import { MobileAddInvestmentSheet } from "@/components/mobile/add-investment-sheet";
+import { MobileLogInvestmentTransactionSheet } from "@/components/mobile/log-investment-transaction-sheet";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -39,6 +41,7 @@ export default function InvestmentDetailPage({ params }: { params: Promise<{ id:
   const router = useRouter();
 
   const investments = useAppStore((s) => s.investments);
+  const accounts = useAppStore((s) => s.accounts);
   const dataLoaded = useAppStore((s) => s.dataLoaded);
   const deleteInvestment = useAppStore((s) => s.deleteInvestment);
   const deleteInvestmentTransactionEntry = useAppStore((s) => s.deleteInvestmentTransactionEntry);
@@ -47,6 +50,9 @@ export default function InvestmentDetailPage({ params }: { params: Promise<{ id:
   const [transactions, setTransactions] = React.useState<InvestmentTransaction[] | null>(null);
   const [editing, setEditing] = React.useState(false);
   const [editingTx, setEditingTx] = React.useState<InvestmentTransaction | null>(null);
+  const [mobileEditing, setMobileEditing] = React.useState(false);
+  const [mobileLogOpen, setMobileLogOpen] = React.useState(false);
+  const [mobileEditingTx, setMobileEditingTx] = React.useState<InvestmentTransaction | null>(null);
 
   const refetchTransactions = React.useCallback(() => {
     investmentTransactionsRepo.listInvestmentTransactions(id).then(setTransactions);
@@ -68,7 +74,10 @@ export default function InvestmentDetailPage({ params }: { params: Promise<{ id:
         <Link href="/investments" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="size-4" /> Back to investments
         </Link>
-        <Card>
+        <p className="wl-mobile text-[14px] font-medium text-wl-muted lg:hidden">
+          {dataLoaded ? "This holding may have been deleted." : "Fetching this holding's details."}
+        </p>
+        <Card className="hidden lg:block">
           <CardContent>
             <EmptyState
               icon={History}
@@ -103,7 +112,126 @@ export default function InvestmentDetailPage({ params }: { params: Promise<{ id:
   }
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="wl-mobile -mx-4 -mt-5 min-h-svh bg-wl-canvas px-6 pt-3 pb-6 lg:hidden">
+        <div className="flex items-center justify-between gap-3">
+          <Link href="/investments" className="flex items-center gap-1.5 text-[14px] font-semibold text-wl-muted">
+            <ArrowLeft className="size-4" /> Back
+          </Link>
+          <button onClick={() => setMobileEditing(true)} className="flex size-9 items-center justify-center rounded-lg bg-wl-surface">
+            <Pencil className="size-4 text-wl-ink" />
+          </button>
+        </div>
+
+        <p className="mt-3 text-[20px] font-semibold leading-7 tracking-[-0.8px] text-wl-ink">{investment.name}</p>
+        <p className="text-[14px] font-medium leading-5 tracking-[-0.56px] text-wl-muted">
+          {ASSET_CLASS_LABEL[investment.assetClass]} · {investment.accountId ? accounts.find((a) => a.id === investment.accountId)?.name : ""}
+        </p>
+
+        <p className="mt-3 text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-muted">Current value</p>
+        <p className="text-[48px] font-semibold leading-[56px] tracking-[-3.84px] text-wl-ink">{formatINR(currentValue)}</p>
+        <p className={`text-[12px] font-medium leading-4 tracking-[-0.48px] ${gain >= 0 ? "text-wl-muted" : "text-wl-error"}`}>
+          Total return {gain >= 0 ? "+" : "−"}
+          {formatINR(Math.abs(gain))} ({formatPercent(returnPct, 1)})
+        </p>
+
+        <div className="mt-3 flex flex-col gap-3 rounded-lg bg-wl-surface p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-[14px] font-medium leading-5 tracking-[-0.56px] text-wl-muted">Invested</span>
+            <span className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">{formatINR(invested)}</span>
+          </div>
+          {unitBased ? (
+            <>
+              <div className="flex items-center justify-between">
+                <span className="text-[14px] font-medium leading-5 tracking-[-0.56px] text-wl-muted">Units held</span>
+                <span className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">
+                  {investment.quantity < 1 ? investment.quantity.toFixed(4) : investment.quantity.toLocaleString("en-IN")}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[14px] font-medium leading-5 tracking-[-0.56px] text-wl-muted">Latest NAV</span>
+                <span className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">{formatINR(investment.currentPrice, { decimals: 4 })}</span>
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center justify-between">
+              <span className="text-[14px] font-medium leading-5 tracking-[-0.56px] text-wl-muted">Current value</span>
+              <span className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">{formatINR(currentValue)}</span>
+            </div>
+          )}
+        </div>
+
+        {unitBased ? (
+          <>
+            <button
+              type="button"
+              onClick={() => setMobileLogOpen(true)}
+              className="mt-3 flex h-[52px] items-center justify-center rounded-lg bg-wl-accent text-[15px] font-semibold tracking-[-0.6px] text-white"
+            >
+              Log transaction
+            </button>
+
+            <p className="mt-6 text-[20px] font-semibold leading-7 tracking-[-0.8px] text-wl-ink">History</p>
+            {!transactions ? (
+              <p className="mt-3 text-[14px] font-medium text-wl-muted">Loading…</p>
+            ) : transactions.length === 0 ? (
+              <p className="mt-3 text-[14px] font-medium text-wl-muted">
+                {openingBalance
+                  ? `Shows ${openingBalance.quantity.toLocaleString("en-IN")} units — log that as your opening Buy to start tracking it.`
+                  : "No transactions logged yet."}
+              </p>
+            ) : (
+              <div className="mt-3 flex flex-col gap-1">
+                {transactions.map((tx) => (
+                  <button
+                    key={tx.id}
+                    onClick={() => setMobileEditingTx(tx)}
+                    className="flex items-center justify-between border-b border-wl-border py-3 text-left last:border-b-0"
+                  >
+                    <div>
+                      <p className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">{TX_TYPE_LABEL[tx.type]}</p>
+                      <p className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">
+                        {new Date(tx.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                        {tx.type !== "dividend" && ` · ${tx.quantity.toLocaleString("en-IN")} units · ${formatINR(tx.price, { decimals: 4 })}`}
+                      </p>
+                    </div>
+                    <p className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">{formatINR(tx.amount, { decimals: 2 })}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <p className="mt-3 text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">
+            {ASSET_CLASS_LABEL[investment.assetClass]} holdings track a lump invested amount and current value — use Edit to update it, or
+            record a contribution from the Investments list.
+          </p>
+        )}
+      </div>
+
+      {mobileEditing && (
+        <MobileAddInvestmentSheet open={mobileEditing} onOpenChange={setMobileEditing} editInvestment={investment} />
+      )}
+      {mobileLogOpen && (
+        <MobileLogInvestmentTransactionSheet
+          open={mobileLogOpen}
+          onOpenChange={setMobileLogOpen}
+          investment={investment}
+          openingBalance={openingBalance}
+          onLogged={refetchTransactions}
+        />
+      )}
+      {mobileEditingTx && (
+        <MobileLogInvestmentTransactionSheet
+          open={!!mobileEditingTx}
+          onOpenChange={(v) => !v && setMobileEditingTx(null)}
+          investment={investment}
+          editEntry={mobileEditingTx}
+          onLogged={refetchTransactions}
+        />
+      )}
+
+      <div className="hidden space-y-6 lg:block">
       <div className="flex items-center justify-between">
         <Link href="/investments" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="size-4" /> Back to investments
@@ -279,6 +407,7 @@ export default function InvestmentDetailPage({ params }: { params: Promise<{ id:
           onLogged={refetchTransactions}
         />
       )}
-    </div>
+      </div>
+    </>
   );
 }
