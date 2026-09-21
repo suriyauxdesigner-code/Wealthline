@@ -9,8 +9,22 @@ import { primaryNav } from "./nav-items";
 // Pages redesigned for the mobile shell (see .wl-mobile) render their own
 // inline header (wordmark + profile) and have no dark mode, so this bar
 // only needs to exist for them on desktop — everywhere else keeps it on
-// mobile too until redesigned.
-const MOBILE_REDESIGNED_PATHS = ["/overview", "/transactions", "/more"];
+// mobile too until redesigned. Every (app) route has its own mobile branch
+// now, so this covers all of them.
+const MOBILE_REDESIGNED_PATHS = [
+  "/overview",
+  "/transactions",
+  "/more",
+  "/budget",
+  "/net-worth",
+  "/debts",
+  "/goals",
+  "/accounts",
+  "/fire",
+  "/reports",
+  "/settings",
+  "/investments",
+];
 
 export function Topbar() {
   const pathname = usePathname();
