@@ -9,9 +9,10 @@ interface InvestmentRow {
   quantity: number;
   average_cost: number;
   current_price: number;
+  currency: Investment["currency"];
 }
 
-const COLUMNS = "id, account_id, asset_name, asset_class, quantity, average_cost, current_price";
+const COLUMNS = "id, account_id, asset_name, asset_class, quantity, average_cost, current_price, currency";
 
 function mapInvestment(row: InvestmentRow): Investment {
   return {
@@ -22,6 +23,7 @@ function mapInvestment(row: InvestmentRow): Investment {
     quantity: row.quantity,
     averageCost: row.average_cost,
     currentPrice: row.current_price,
+    currency: row.currency,
   };
 }
 
@@ -43,6 +45,7 @@ export async function createInvestment(input: Omit<Investment, "id">): Promise<I
       quantity: input.quantity,
       average_cost: input.averageCost,
       current_price: input.currentPrice,
+      currency: input.currency,
     })
     .select(COLUMNS)
     .single();
@@ -59,6 +62,7 @@ export async function updateInvestment(id: string, patch: Partial<Investment>): 
   if (patch.quantity !== undefined) update.quantity = patch.quantity;
   if (patch.averageCost !== undefined) update.average_cost = patch.averageCost;
   if (patch.currentPrice !== undefined) update.current_price = patch.currentPrice;
+  if (patch.currency !== undefined) update.currency = patch.currency;
 
   const { data, error } = await supabase.from("investments").update(update).eq("id", id).select(COLUMNS).single();
   if (error) throw new Error(error.message);

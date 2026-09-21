@@ -3,7 +3,7 @@
 // change — every entity has a stable `id`, and relations are expressed as
 // foreign-key style string ids rather than nested objects.
 
-export type Currency = "INR";
+export type Currency = "INR" | "USD";
 
 export interface UserProfile {
   id: string;
@@ -108,6 +108,8 @@ export interface Investment {
   quantity: number;
   averageCost: number;
   currentPrice: number;
+  /** The currency `averageCost`/`currentPrice` are denominated in — defaults to INR. */
+  currency: Currency;
 }
 
 export type InvestmentTransactionType = "buy" | "sell" | "dividend";

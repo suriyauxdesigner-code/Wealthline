@@ -21,11 +21,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ASSET_CLASS_LABEL, isUnitBasedAssetClass } from "@/lib/investment-selectors";
-import { formatINR } from "@/lib/calculations";
+import { formatCurrency } from "@/lib/calculations";
 import { useAppStore } from "@/lib/store";
-import type { AssetClass, Investment } from "@/lib/types";
+import type { AssetClass, Currency, Investment } from "@/lib/types";
 
 const ASSET_CLASSES = Object.keys(ASSET_CLASS_LABEL) as AssetClass[];
+const CURRENCIES: Currency[] = ["INR", "USD"];
 
 interface AddInvestmentDialogProps {
   /** When set, the dialog edits this investment instead of creating one. */
@@ -53,6 +54,7 @@ export function AddInvestmentDialog({
 
   const [name, setName] = React.useState(editInvestment?.name ?? "");
   const [assetClass, setAssetClass] = React.useState<AssetClass>(editInvestment?.assetClass ?? "equity");
+  const [currency, setCurrency] = React.useState<Currency>(editInvestment?.currency ?? "INR");
   const [accountId, setAccountId] = React.useState(editInvestment?.accountId ?? "");
   // Unit-based holdings only ever expose the LTP for editing here — quantity
   // and average cost are derived from the transaction log (see the detail
@@ -79,6 +81,7 @@ export function AddInvestmentDialog({
     if (isEdit) return;
     setName("");
     setAssetClass("equity");
+    setCurrency("INR");
     setAccountId("");
     setCurrentPrice("");
     setInvestedAmount("");
@@ -107,6 +110,7 @@ export function AddInvestmentDialog({
           const created = await addInvestment({
             name,
             assetClass,
+            currency,
             accountId: selectedAccountId,
             quantity: 0,
             averageCost: 0,
@@ -133,6 +137,7 @@ export function AddInvestmentDialog({
         const payload = {
           name,
           assetClass,
+          currency: "INR" as const,
           accountId: selectedAccountId,
           quantity: 1,
           averageCost: numericInvested,
@@ -240,6 +245,29 @@ export function AddInvestmentDialog({
             </div>
           </div>
 
+          {unitBased && !isEdit && (
+            <div className="space-y-1.5">
+              <Label>Currency</Label>
+              <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CURRENCIES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c === "USD" ? "USD — US dollar" : "INR — Indian rupee"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {currency === "USD" && (
+                <p className="text-xs text-muted-foreground">
+                  Price and quantity are entered in USD; converted to INR everywhere else using a daily exchange rate.
+                </p>
+              )}
+            </div>
+          )}
+
           {unitBased ? (
             isEdit && (
               <div className="space-y-3">
@@ -250,7 +278,7 @@ export function AddInvestmentDialog({
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Avg. cost</p>
-                    <p className="font-medium tabular-nums">{formatINR(editInvestment!.averageCost, { decimals: 4 })}</p>
+                    <p className="font-medium tabular-nums">{formatCurrency(editInvestment!.averageCost, editInvestment!.currency, { decimals: 4 })}</p>
                   </div>
                 </div>
                 <div className="space-y-1.5">

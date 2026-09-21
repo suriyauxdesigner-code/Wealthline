@@ -15,6 +15,7 @@ import { recurringTransactions as seedRecurring } from "./mock-data";
 import * as accountsRepo from "./repositories/accounts";
 import * as budgetsRepo from "./repositories/budgets";
 import * as categoriesRepo from "./repositories/categories";
+import * as exchangeRatesRepo from "./repositories/exchange-rates";
 import * as fireProfileRepo from "./repositories/fire-profile";
 import * as goalsRepo from "./repositories/goals";
 import * as investmentsRepo from "./repositories/investments";
@@ -68,6 +69,8 @@ interface AppState {
   otherAssets: OtherAsset[];
   recurring: RecurringTransaction[];
   fireProfile: FIREProfile;
+  /** Shared USD→INR rate, kept fresh by a daily cron — see repositories/exchange-rates.ts. */
+  usdInrRate: number;
   dataLoaded: boolean;
 
   init: () => Promise<void>;
@@ -274,6 +277,7 @@ export const useAppStore = create<AppState>((set, get) => {
   otherAssets: [],
   recurring: seedRecurring,
   fireProfile: DEFAULT_FIRE_PROFILE,
+  usdInrRate: 83,
   dataLoaded: false,
 
   // Called once on mount (see StoreInitializer) — dedupes concurrent callers
@@ -282,7 +286,7 @@ export const useAppStore = create<AppState>((set, get) => {
     if (!initPromise) {
       initPromise = (async () => {
         try {
-          const [accounts, transactions, categories, budgets, goals, investments, liabilities, otherAssets, fireProfile] =
+          const [accounts, transactions, categories, budgets, goals, investments, liabilities, otherAssets, fireProfile, usdInrRate] =
             await Promise.all([
               accountsRepo.listAccounts(),
               transactionsRepo.listTransactions(),
@@ -293,6 +297,7 @@ export const useAppStore = create<AppState>((set, get) => {
               liabilitiesRepo.listLiabilities(),
               otherAssetsRepo.listOtherAssets(),
               fireProfileRepo.getFireProfile(),
+              exchangeRatesRepo.getUsdInrRate(),
             ]);
           set({
             accounts,
@@ -304,6 +309,7 @@ export const useAppStore = create<AppState>((set, get) => {
             liabilities,
             otherAssets,
             fireProfile: fireProfile ?? DEFAULT_FIRE_PROFILE,
+            usdInrRate,
             dataLoaded: true,
           });
         } catch (err) {
@@ -318,7 +324,7 @@ export const useAppStore = create<AppState>((set, get) => {
   // on another device shows up here without a full page reload.
   refresh: async () => {
     try {
-      const [accounts, transactions, budgets, goals, investments, liabilities, otherAssets, fireProfile] =
+      const [accounts, transactions, budgets, goals, investments, liabilities, otherAssets, fireProfile, usdInrRate] =
         await Promise.all([
           accountsRepo.listAccounts(),
           transactionsRepo.listTransactions(),
@@ -328,6 +334,7 @@ export const useAppStore = create<AppState>((set, get) => {
           liabilitiesRepo.listLiabilities(),
           otherAssetsRepo.listOtherAssets(),
           fireProfileRepo.getFireProfile(),
+          exchangeRatesRepo.getUsdInrRate(),
         ]);
       set({
         accounts,
@@ -337,6 +344,7 @@ export const useAppStore = create<AppState>((set, get) => {
         investments,
         liabilities,
         otherAssets,
+        usdInrRate,
         ...(fireProfile ? { fireProfile } : {}),
       });
     } catch (err) {

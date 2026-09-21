@@ -9,6 +9,7 @@ import { Rise } from "cube-motion/react";
 
 import { AddTransactionDialog } from "@/components/add-transaction-dialog";
 import { MobileAddTransactionSheet } from "@/components/mobile/add-transaction-sheet";
+import { MobileAddInvestmentSheet } from "@/components/mobile/add-investment-sheet";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -49,6 +50,7 @@ export default function OverviewPage() {
   const { transactions, accounts, categories, budgets, liabilities, otherAssets, fireProfile, goals } = useAppStore();
   const authUser = useAuthUser();
   const [mobileSheetType, setMobileSheetType] = React.useState<MobileQuickActionType | null>(null);
+  const [mobileInvestOpen, setMobileInvestOpen] = React.useState(false);
   const [range, setRange] = React.useState<RangeOption>("this-month");
   const [customRange, setCustomRange] = React.useState(() => {
     const today = new Date();
@@ -126,6 +128,7 @@ export default function OverviewPage() {
               <QuickActionTile icon={Plus} label="Expense" onClick={() => setMobileSheetType("expense")} />
               <QuickActionTile icon={ArrowDown} label="Income" onClick={() => setMobileSheetType("income")} />
               <QuickActionTile icon={ArrowLeftRight} label="Transfer" onClick={() => setMobileSheetType("transfer")} />
+              <QuickActionTile icon={TrendingUp} label="Invest" onClick={() => setMobileInvestOpen(true)} />
             </div>
 
             {primaryGoal && (
@@ -170,6 +173,8 @@ export default function OverviewPage() {
           defaultType={mobileSheetType}
         />
       )}
+
+      {mobileInvestOpen && <MobileAddInvestmentSheet open={mobileInvestOpen} onOpenChange={setMobileInvestOpen} />}
 
       <div className="hidden space-y-6 lg:block">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

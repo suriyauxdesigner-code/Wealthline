@@ -6,6 +6,7 @@ import { formatPercent } from "@/lib/calculations";
 export function MetricCard({
   label,
   value,
+  hint,
   changePct,
   changeLabel,
   icon: Icon,
@@ -15,6 +16,8 @@ export function MetricCard({
 }: {
   label: string;
   value: string;
+  /** Small muted caption under the value — e.g. an INR-converted figure for a foreign-currency amount. */
+  hint?: string;
   changePct?: number;
   changeLabel?: string;
   icon?: LucideIcon;
@@ -39,6 +42,7 @@ export function MetricCard({
       >
         {value}
       </span>
+      {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
       {hasChange && (
         <div className={cn("flex items-center gap-1 text-xs font-medium", isGood ? "text-positive" : "text-negative")}>
           {changePct! >= 0 ? <ArrowUpRight className="size-3.5" /> : <ArrowDownRight className="size-3.5" />}

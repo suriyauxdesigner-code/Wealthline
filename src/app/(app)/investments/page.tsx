@@ -22,7 +22,7 @@ import { EmptyState } from "@/components/finance/empty-state";
 import { MetricCard } from "@/components/finance/metric-card";
 import { AllocationDonut } from "@/components/finance/allocation-donut";
 import { useAppStore } from "@/lib/store";
-import { formatINR, formatPercent } from "@/lib/calculations";
+import { formatCurrency, formatINR, formatPercent } from "@/lib/calculations";
 import { allocationByGroup, ASSET_CLASS_LABEL, holdingsWithReturns } from "@/lib/investment-selectors";
 
 const GROUP_COLORS: Record<string, string> = {
@@ -33,8 +33,8 @@ const GROUP_COLORS: Record<string, string> = {
 };
 
 export default function InvestmentsPage() {
-  const { investments, deleteInvestment } = useAppStore();
-  const holdings = holdingsWithReturns(investments);
+  const { investments, deleteInvestment, usdInrRate } = useAppStore();
+  const holdings = holdingsWithReturns(investments, usdInrRate);
   const [editing, setEditing] = React.useState<(typeof holdings)[number] | null>(null);
   const [mobileCreateOpen, setMobileCreateOpen] = React.useState(false);
   const [mobileContributeOpen, setMobileContributeOpen] = React.useState(false);
@@ -232,8 +232,8 @@ export default function InvestmentsPage() {
                   <TableCell className="text-right tabular-nums text-muted-foreground">
                     {h.quantity < 1 ? h.quantity.toFixed(4) : h.quantity.toLocaleString("en-IN")}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">{formatINR(h.averageCost, { decimals: 4 })}</TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">{formatINR(h.currentPrice, { decimals: 4 })}</TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">{formatCurrency(h.averageCost, h.currency, { decimals: 4 })}</TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">{formatCurrency(h.currentPrice, h.currency, { decimals: 4 })}</TableCell>
                   <TableCell className="text-right font-medium tabular-nums">{formatINR(h.currentValue, { compact: true })}</TableCell>
                   <TableCell className={`text-right tabular-nums ${h.gain >= 0 ? "text-positive" : "text-negative"}`}>
                     {h.gain >= 0 ? "+" : ""}

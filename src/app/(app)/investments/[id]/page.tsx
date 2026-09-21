@@ -24,7 +24,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { EmptyState } from "@/components/finance/empty-state";
 import { MetricCard } from "@/components/finance/metric-card";
 import { useAppStore } from "@/lib/store";
-import { calcCurrentValue, calcInvestedValue, calcReturnPct, formatINR, formatPercent } from "@/lib/calculations";
+import { calcCurrentValue, calcInvestedValue, calcReturnPct, convertToINR, formatCurrency, formatINR, formatPercent } from "@/lib/calculations";
 import { ASSET_CLASS_LABEL, isUnitBasedAssetClass } from "@/lib/investment-selectors";
 import * as investmentTransactionsRepo from "@/lib/repositories/investment-transactions";
 import type { InvestmentTransaction } from "@/lib/types";
@@ -44,6 +44,7 @@ export default function InvestmentDetailPage({ params }: { params: Promise<{ id:
   const investments = useAppStore((s) => s.investments);
   const accounts = useAppStore((s) => s.accounts);
   const dataLoaded = useAppStore((s) => s.dataLoaded);
+  const usdInrRate = useAppStore((s) => s.usdInrRate);
   const deleteInvestment = useAppStore((s) => s.deleteInvestment);
   const deleteInvestmentTransactionEntry = useAppStore((s) => s.deleteInvestmentTransactionEntry);
 
@@ -94,6 +95,7 @@ export default function InvestmentDetailPage({ params }: { params: Promise<{ id:
   const unitBased = isUnitBasedAssetClass(investment.assetClass);
   const invested = calcInvestedValue(investment.quantity, investment.averageCost);
   const currentValue = calcCurrentValue(investment.quantity, investment.currentPrice);
+  const currentValueINR = convertToINR(currentValue, investment.currency, usdInrRate);
   const gain = currentValue - invested;
   const returnPct = calcReturnPct(invested, currentValue);
   // A holding created before per-transaction tracking (or whose opening
@@ -130,16 +132,19 @@ export default function InvestmentDetailPage({ params }: { params: Promise<{ id:
         </p>
 
         <p className="mt-3 text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-muted">Current value</p>
-        <p className="text-[48px] font-semibold leading-[56px] tracking-[-3.84px] text-wl-ink">{formatINR(currentValue)}</p>
+        <p className="text-[48px] font-semibold leading-[56px] tracking-[-3.84px] text-wl-ink">{formatCurrency(currentValue, investment.currency)}</p>
+        {investment.currency !== "INR" && (
+          <p className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">≈ {formatINR(currentValueINR)}</p>
+        )}
         <p className={`text-[12px] font-medium leading-4 tracking-[-0.48px] ${gain >= 0 ? "text-wl-muted" : "text-wl-error"}`}>
           Total return {gain >= 0 ? "+" : "−"}
-          {formatINR(Math.abs(gain))} ({formatPercent(returnPct, 1)})
+          {formatCurrency(Math.abs(gain), investment.currency)} ({formatPercent(returnPct, 1)})
         </p>
 
         <div className="mt-3 flex flex-col gap-3 rounded-lg bg-wl-surface p-4">
           <div className="flex items-center justify-between">
             <span className="text-[14px] font-medium leading-5 tracking-[-0.56px] text-wl-muted">Invested</span>
-            <span className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">{formatINR(invested)}</span>
+            <span className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">{formatCurrency(invested, investment.currency)}</span>
           </div>
           {unitBased ? (
             <>
@@ -151,13 +156,13 @@ export default function InvestmentDetailPage({ params }: { params: Promise<{ id:
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[14px] font-medium leading-5 tracking-[-0.56px] text-wl-muted">Latest NAV</span>
-                <span className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">{formatINR(investment.currentPrice, { decimals: 4 })}</span>
+                <span className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">{formatCurrency(investment.currentPrice, investment.currency, { decimals: 4 })}</span>
               </div>
             </>
           ) : (
             <div className="flex items-center justify-between">
               <span className="text-[14px] font-medium leading-5 tracking-[-0.56px] text-wl-muted">Current value</span>
-              <span className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">{formatINR(currentValue)}</span>
+              <span className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">{formatCurrency(currentValue, investment.currency)}</span>
             </div>
           )}
         </div>
@@ -193,10 +198,10 @@ export default function InvestmentDetailPage({ params }: { params: Promise<{ id:
                       <p className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">{TX_TYPE_LABEL[tx.type]}</p>
                       <p className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">
                         {new Date(tx.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                        {tx.type !== "dividend" && ` · ${tx.quantity.toLocaleString("en-IN")} units · ${formatINR(tx.price, { decimals: 4 })}`}
+                        {tx.type !== "dividend" && ` · ${tx.quantity.toLocaleString("en-IN")} units · ${formatCurrency(tx.price, investment.currency, { decimals: 4 })}`}
                       </p>
                     </div>
-                    <p className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">{formatINR(tx.amount, { decimals: 2 })}</p>
+                    <p className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">{formatCurrency(tx.amount, investment.currency, { decimals: 2 })}</p>
                   </button>
                 ))}
               </Reveal>
@@ -277,11 +282,16 @@ export default function InvestmentDetailPage({ params }: { params: Promise<{ id:
 
       <Card className="py-5">
         <CardContent className="grid grid-cols-2 gap-6 px-5 sm:grid-cols-4 sm:px-6">
-          <MetricCard label="Current value" value={formatINR(currentValue)} size="lg" />
-          <MetricCard label="Invested" value={formatINR(invested)} size="lg" />
+          <MetricCard
+            label="Current value"
+            value={formatCurrency(currentValue, investment.currency)}
+            hint={investment.currency !== "INR" ? `≈ ${formatINR(currentValueINR)}` : undefined}
+            size="lg"
+          />
+          <MetricCard label="Invested" value={formatCurrency(invested, investment.currency)} size="lg" />
           <MetricCard
             label="Total returns"
-            value={`${gain >= 0 ? "+" : ""}${formatINR(gain)}`}
+            value={`${gain >= 0 ? "+" : ""}${formatCurrency(gain, investment.currency)}`}
             changePct={returnPct}
             size="lg"
           />
@@ -296,8 +306,8 @@ export default function InvestmentDetailPage({ params }: { params: Promise<{ id:
       {unitBased && (
         <Card className="py-5">
           <CardContent className="grid grid-cols-2 gap-6 px-5 sm:grid-cols-2 sm:px-6">
-            <MetricCard label="Avg. cost / NAV" value={formatINR(investment.averageCost, { decimals: 4 })} />
-            <MetricCard label="Current price / NAV" value={formatINR(investment.currentPrice, { decimals: 4 })} />
+            <MetricCard label="Avg. cost / NAV" value={formatCurrency(investment.averageCost, investment.currency, { decimals: 4 })} />
+            <MetricCard label="Current price / NAV" value={formatCurrency(investment.currentPrice, investment.currency, { decimals: 4 })} />
           </CardContent>
         </Card>
       )}
@@ -350,10 +360,10 @@ export default function InvestmentDetailPage({ params }: { params: Promise<{ id:
                         {tx.type === "dividend" ? "—" : tx.quantity.toLocaleString("en-IN")}
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-muted-foreground">
-                        {tx.type === "dividend" ? "—" : formatINR(tx.price, { decimals: 4 })}
+                        {tx.type === "dividend" ? "—" : formatCurrency(tx.price, investment.currency, { decimals: 4 })}
                       </TableCell>
                       <TableCell className="text-right tabular-nums font-medium">
-                        {formatINR(tx.amount, { decimals: 2 })}
+                        {formatCurrency(tx.amount, investment.currency, { decimals: 2 })}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-0.5">

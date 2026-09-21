@@ -10,12 +10,16 @@ import { MobileFieldRow } from "./field-row";
 import { MobileListPicker } from "./list-picker";
 import { MobileDiscardSheet, useDiscardGuard, useIsDirty } from "./discard-guard";
 import { ASSET_CLASS_LABEL, isUnitBasedAssetClass } from "@/lib/investment-selectors";
-import { formatINR } from "@/lib/calculations";
+import { formatCurrency, formatINR } from "@/lib/calculations";
 import { AccountIcon } from "@/components/finance/account-icon";
 import { useAppStore } from "@/lib/store";
-import type { AssetClass, Investment } from "@/lib/types";
+import type { AssetClass, Currency, Investment } from "@/lib/types";
 
 const ASSET_CLASSES = Object.keys(ASSET_CLASS_LABEL) as AssetClass[];
+const CURRENCIES: { value: Currency; label: string }[] = [
+  { value: "INR", label: "₹ INR" },
+  { value: "USD", label: "$ USD" },
+];
 
 interface MobileAddInvestmentSheetProps {
   open: boolean;
@@ -35,6 +39,7 @@ export function MobileAddInvestmentSheet({ open, onOpenChange, editInvestment }:
   const [accountPickerOpen, setAccountPickerOpen] = React.useState(false);
   const [name, setName] = React.useState(editInvestment?.name ?? "");
   const [assetClass, setAssetClass] = React.useState<AssetClass>(editInvestment?.assetClass ?? "equity");
+  const [currency, setCurrency] = React.useState<Currency>(editInvestment?.currency ?? "INR");
   const [accountId, setAccountId] = React.useState(editInvestment?.accountId ?? accounts[0]?.id ?? "");
   const [currentPrice, setCurrentPrice] = React.useState(editInvestment ? String(editInvestment.currentPrice) : "");
   const [investedAmount, setInvestedAmount] = React.useState(
@@ -48,7 +53,7 @@ export function MobileAddInvestmentSheet({ open, onOpenChange, editInvestment }:
   const unitBased = isUnitBasedAssetClass(assetClass);
   const selectedAccountId = accountId || accounts[0]?.id || "";
 
-  const isDirty = useIsDirty({ name, assetClass, accountId, currentPrice, investedAmount, currentValue });
+  const isDirty = useIsDirty({ name, assetClass, currency, accountId, currentPrice, investedAmount, currentValue });
   const { confirmOpen, requestClose, keepEditing, discardChanges } = useDiscardGuard(isDirty, () => onOpenChange(false));
 
   async function handleSubmit() {
@@ -71,6 +76,7 @@ export function MobileAddInvestmentSheet({ open, onOpenChange, editInvestment }:
           const created = await addInvestment({
             name,
             assetClass,
+            currency,
             accountId: selectedAccountId,
             quantity: 0,
             averageCost: 0,
@@ -89,6 +95,7 @@ export function MobileAddInvestmentSheet({ open, onOpenChange, editInvestment }:
         const payload = {
           name,
           assetClass,
+          currency: "INR" as const,
           accountId: selectedAccountId,
           quantity: 1,
           averageCost: numericInvested,
@@ -137,6 +144,29 @@ export function MobileAddInvestmentSheet({ open, onOpenChange, editInvestment }:
           <MobileFieldRow label="Asset class" value={ASSET_CLASS_LABEL[assetClass]} onClick={() => !isEdit && setAssetClassPickerOpen(true)} />
           <MobileFieldRow label="Account" value={accounts.find((a) => a.id === selectedAccountId)?.name ?? "Select"} onClick={() => setAccountPickerOpen(true)} />
 
+          {unitBased && !isEdit && (
+            <div className="flex flex-col gap-1.5 py-1">
+              <span className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">Currency</span>
+              <div className="flex gap-1 rounded-xl bg-wl-surface p-1">
+                {CURRENCIES.map((c) => (
+                  <button
+                    key={c.value}
+                    type="button"
+                    onClick={() => setCurrency(c.value)}
+                    className={`flex-1 rounded-lg py-3 text-[14px] font-semibold leading-5 tracking-[-0.56px] ${currency === c.value ? "bg-wl-disabled text-wl-ink" : "text-wl-muted"}`}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+              {currency === "USD" && (
+                <p className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">
+                  Price and quantity are entered in USD; converted to INR everywhere else with a daily exchange rate.
+                </p>
+              )}
+            </div>
+          )}
+
           {unitBased ? (
             isEdit && (
               <>
@@ -147,7 +177,7 @@ export function MobileAddInvestmentSheet({ open, onOpenChange, editInvestment }:
                   </div>
                   <div className="text-right">
                     <p className="text-[12px] font-medium text-wl-muted">Avg. cost</p>
-                    <p className="font-semibold text-wl-ink">₹{editInvestment!.averageCost.toFixed(4)}</p>
+                    <p className="font-semibold text-wl-ink">{formatCurrency(editInvestment!.averageCost, editInvestment!.currency, { decimals: 4 })}</p>
                   </div>
                 </div>
                 <div className="flex h-16 flex-col justify-center gap-1 border-b border-wl-border">

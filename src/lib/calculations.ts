@@ -4,7 +4,7 @@
 // Net Worth, FIRE, Reports, Financial Health all call into this module
 // rather than re-deriving formulas inline).
 
-import type { Account, Liability, Transaction, FIREProfile } from "./types";
+import type { Account, Currency, Liability, Transaction, FIREProfile } from "./types";
 
 // ---------- Net worth ----------
 
@@ -73,6 +73,11 @@ export function calcCurrentValue(quantity: number, currentPrice: number): number
 export function calcReturnPct(invested: number, currentValue: number): number {
   if (invested <= 0) return 0;
   return ((currentValue - invested) / invested) * 100;
+}
+
+/** Converts a value in `currency` to INR — a no-op for INR itself. `usdInrRate` comes from the store (kept fresh by a daily cron). */
+export function convertToINR(value: number, currency: Currency, usdInrRate: number): number {
+  return currency === "USD" ? value * usdInrRate : value;
 }
 
 // ---------- FIRE ----------
@@ -359,4 +364,19 @@ export function formatINR(
 
 export function formatPercent(value: number, decimals = 1): string {
   return `${value >= 0 ? "" : "-"}${Math.abs(value).toFixed(decimals)}%`;
+}
+
+/** Like formatINR, but for a value already in `currency` — USD holdings display in their own currency, not force-converted. */
+export function formatCurrency(value: number, currency: Currency, opts: { showSign?: boolean; decimals?: number } = {}): string {
+  if (currency === "INR") return formatINR(value, opts);
+
+  const { showSign = false, decimals = 2 } = opts;
+  const sign = showSign && value > 0 ? "+" : "";
+  const formatted = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: decimals,
+  }).format(Math.abs(value));
+
+  return `${sign}${value < 0 ? "-" : ""}${formatted}`;
 }

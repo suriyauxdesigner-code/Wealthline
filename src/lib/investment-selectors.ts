@@ -1,5 +1,5 @@
 import type { AssetClass, Investment } from "./types";
-import { calcCurrentValue, calcInvestedValue, calcReturnPct } from "./calculations";
+import { calcCurrentValue, calcInvestedValue, calcReturnPct, convertToINR } from "./calculations";
 
 export const ASSET_CLASS_LABEL: Record<AssetClass, string> = {
   equity: "Stocks",
@@ -40,17 +40,22 @@ export function isUnitBasedAssetClass(assetClass: AssetClass): boolean {
 }
 
 export interface HoldingRow extends Investment {
+  /** Always INR — converted from the holding's own currency using usdInrRate. */
   invested: number;
+  /** Always INR — converted from the holding's own currency using usdInrRate. */
   currentValue: number;
   returnPct: number;
   gain: number;
 }
 
-export function holdingsWithReturns(investments: Investment[]): HoldingRow[] {
+// usdInrRate defaults to 1 (no-op) so call sites that only ever deal in INR
+// holdings (most of this app, still) don't need to thread the store's rate
+// through — it only matters once a USD-currency investment exists.
+export function holdingsWithReturns(investments: Investment[], usdInrRate = 1): HoldingRow[] {
   return investments
     .map((inv) => {
-      const invested = calcInvestedValue(inv.quantity, inv.averageCost);
-      const currentValue = calcCurrentValue(inv.quantity, inv.currentPrice);
+      const invested = convertToINR(calcInvestedValue(inv.quantity, inv.averageCost), inv.currency, usdInrRate);
+      const currentValue = convertToINR(calcCurrentValue(inv.quantity, inv.currentPrice), inv.currency, usdInrRate);
       return {
         ...inv,
         invested,
