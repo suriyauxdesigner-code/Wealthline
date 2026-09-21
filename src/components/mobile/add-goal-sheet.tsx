@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { MobileBottomSheet } from "./bottom-sheet";
 import { MobileDateField } from "./date-field";
+import { MobileDiscardSheet, useDiscardGuard, useIsDirty } from "./discard-guard";
 import { useAppStore } from "@/lib/store";
 import type { Goal } from "@/lib/types";
 
@@ -28,6 +29,9 @@ export function MobileAddGoalSheet({ open, onOpenChange, editGoal }: MobileAddGo
   const [date, setDate] = React.useState(editGoal?.targetDate ?? "");
   const [contribution, setContribution] = React.useState(editGoal ? String(editGoal.monthlyContribution) : "");
   const [submitting, setSubmitting] = React.useState(false);
+
+  const isDirty = useIsDirty({ name, target, current, date, contribution });
+  const { confirmOpen, requestClose, keepEditing, discardChanges } = useDiscardGuard(isDirty, () => onOpenChange(false));
 
   async function handleSubmit() {
     if (!name || !target || !date) return;
@@ -66,7 +70,8 @@ export function MobileAddGoalSheet({ open, onOpenChange, editGoal }: MobileAddGo
   }
 
   return (
-    <MobileBottomSheet open={open} onOpenChange={onOpenChange} title={isEdit ? "Edit goal" : "New goal"}>
+    <>
+    <MobileBottomSheet open={open} onOpenChange={onOpenChange} onRequestClose={requestClose} title={isEdit ? "Edit goal" : "New goal"}>
       <div className="flex flex-col gap-3">
         <div className="flex h-16 flex-col justify-center gap-1 border-b border-wl-border">
           <label className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">Name</label>
@@ -124,5 +129,8 @@ export function MobileAddGoalSheet({ open, onOpenChange, editGoal }: MobileAddGo
         )}
       </div>
     </MobileBottomSheet>
+
+    <MobileDiscardSheet open={confirmOpen} noun="goal" onKeepEditing={keepEditing} onDiscard={discardChanges} />
+    </>
   );
 }

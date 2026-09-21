@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { MobileBottomSheet } from "./bottom-sheet";
 import { MobileFieldRow } from "./field-row";
 import { MobileListPicker } from "./list-picker";
+import { MobileDiscardSheet, useDiscardGuard, useIsDirty } from "./discard-guard";
 import { resolveIcon } from "@/components/finance/icon-map";
 import { useAppStore } from "@/lib/store";
 import type { Budget } from "@/lib/types";
@@ -28,13 +29,16 @@ export function MobileAddBudgetSheet({ open, onOpenChange, editBudget }: MobileA
   const budgetedCategoryIds = new Set(budgets.map((b) => b.categoryId));
   const availableCategories = categories.filter((c) => c.kind === "expense" && !budgetedCategoryIds.has(c.id));
 
-  const [view, setView] = React.useState<"form" | "category">("form");
+  const [categoryPickerOpen, setCategoryPickerOpen] = React.useState(false);
   const [categoryId, setCategoryId] = React.useState(editBudget?.categoryId ?? "");
   const [limit, setLimit] = React.useState(editBudget ? String(editBudget.limit) : "");
   const [submitting, setSubmitting] = React.useState(false);
 
   const selectedCategoryId = categoryId || availableCategories[0]?.id || "";
   const editCategory = editBudget ? categories.find((c) => c.id === editBudget.categoryId) : undefined;
+
+  const isDirty = useIsDirty({ categoryId, limit });
+  const { confirmOpen, requestClose, keepEditing, discardChanges } = useDiscardGuard(isDirty, () => onOpenChange(false));
 
   async function handleSubmit() {
     const numericLimit = Number(limit);
@@ -63,24 +67,11 @@ export function MobileAddBudgetSheet({ open, onOpenChange, editBudget }: MobileA
     onOpenChange(false);
   }
 
-  const title = view === "category" ? "Budget category" : isEdit ? "Edit budget" : "Add budget";
+  const title = isEdit ? "Edit budget" : "Add budget";
 
   return (
-    <MobileBottomSheet open={open} onOpenChange={onOpenChange} title={title}>
-      {view === "category" ? (
-        <MobileListPicker
-          options={availableCategories.map((c) => ({
-            id: c.id,
-            label: c.name,
-            icon: React.createElement(resolveIcon(c.icon), { className: "size-6 text-wl-ink", strokeWidth: 1.75 }),
-          }))}
-          selectedId={selectedCategoryId}
-          onSelect={(id) => {
-            setCategoryId(id);
-            setView("form");
-          }}
-        />
-      ) : (
+    <>
+    <MobileBottomSheet open={open} onOpenChange={onOpenChange} onRequestClose={requestClose} title={title}>
         <div className="flex flex-col gap-3">
           {!isEdit && (
             <p className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-muted">Set a monthly limit for one category.</p>
@@ -98,7 +89,7 @@ export function MobileAddBudgetSheet({ open, onOpenChange, editBudget }: MobileA
                 <MobileFieldRow
                   label="Category"
                   value={categories.find((c) => c.id === selectedCategoryId)?.name ?? "Select"}
-                  onClick={() => setView("category")}
+                  onClick={() => setCategoryPickerOpen(true)}
                 />
               )}
               <div className="flex h-16 flex-col justify-center gap-1 border-b border-wl-border">
@@ -131,7 +122,32 @@ export function MobileAddBudgetSheet({ open, onOpenChange, editBudget }: MobileA
             </>
           )}
         </div>
-      )}
     </MobileBottomSheet>
+
+    {categoryPickerOpen && (
+      <MobileBottomSheet
+        open={categoryPickerOpen}
+        onOpenChange={setCategoryPickerOpen}
+        onRequestClose={() => setCategoryPickerOpen(false)}
+        title="Budget category"
+        stacked
+      >
+        <MobileListPicker
+          options={availableCategories.map((c) => ({
+            id: c.id,
+            label: c.name,
+            icon: React.createElement(resolveIcon(c.icon), { className: "size-6 text-wl-ink", strokeWidth: 1.75 }),
+          }))}
+          selectedId={selectedCategoryId}
+          onSelect={(id) => {
+            setCategoryId(id);
+            setCategoryPickerOpen(false);
+          }}
+        />
+      </MobileBottomSheet>
+    )}
+
+    <MobileDiscardSheet open={confirmOpen} noun="budget" onKeepEditing={keepEditing} onDiscard={discardChanges} />
+    </>
   );
 }

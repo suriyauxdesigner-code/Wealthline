@@ -7,7 +7,9 @@ import { toast } from "sonner";
 import { MobileBottomSheet } from "./bottom-sheet";
 import { MobileFieldRow } from "./field-row";
 import { MobileListPicker } from "./list-picker";
+import { MobileDiscardSheet, useDiscardGuard, useIsDirty } from "./discard-guard";
 import { ASSET_CLASS_LABEL, isUnitBasedAssetClass } from "@/lib/investment-selectors";
+import { formatINR } from "@/lib/calculations";
 import { useAppStore } from "@/lib/store";
 import type { AssetClass, Investment } from "@/lib/types";
 
@@ -27,7 +29,8 @@ export function MobileAddInvestmentSheet({ open, onOpenChange, editInvestment }:
   const updateInvestment = useAppStore((s) => s.updateInvestment);
   const deleteInvestment = useAppStore((s) => s.deleteInvestment);
 
-  const [view, setView] = React.useState<"form" | "assetClass" | "account">("form");
+  const [assetClassPickerOpen, setAssetClassPickerOpen] = React.useState(false);
+  const [accountPickerOpen, setAccountPickerOpen] = React.useState(false);
   const [name, setName] = React.useState(editInvestment?.name ?? "");
   const [assetClass, setAssetClass] = React.useState<AssetClass>(editInvestment?.assetClass ?? "equity");
   const [accountId, setAccountId] = React.useState(editInvestment?.accountId ?? accounts[0]?.id ?? "");
@@ -42,6 +45,9 @@ export function MobileAddInvestmentSheet({ open, onOpenChange, editInvestment }:
 
   const unitBased = isUnitBasedAssetClass(assetClass);
   const selectedAccountId = accountId || accounts[0]?.id || "";
+
+  const isDirty = useIsDirty({ name, assetClass, accountId, currentPrice, investedAmount, currentValue });
+  const { confirmOpen, requestClose, keepEditing, discardChanges } = useDiscardGuard(isDirty, () => onOpenChange(false));
 
   async function handleSubmit() {
     if (!name || !selectedAccountId) return;
@@ -108,29 +114,12 @@ export function MobileAddInvestmentSheet({ open, onOpenChange, editInvestment }:
     router.push("/investments");
   }
 
-  const title = view === "assetClass" ? "Asset class" : view === "account" ? "Account" : isEdit ? "Edit investment" : "Add investment";
+  const title = isEdit ? "Edit investment" : "Add investment";
 
   return (
-    <MobileBottomSheet open={open} onOpenChange={onOpenChange} title={title}>
-      {view === "assetClass" ? (
-        <MobileListPicker
-          options={ASSET_CLASSES.map((ac) => ({ id: ac, label: ASSET_CLASS_LABEL[ac] }))}
-          selectedId={assetClass}
-          onSelect={(id) => {
-            if (!isEdit) setAssetClass(id as AssetClass);
-            setView("form");
-          }}
-        />
-      ) : view === "account" ? (
-        <MobileListPicker
-          options={accounts.map((a) => ({ id: a.id, label: a.name }))}
-          selectedId={selectedAccountId}
-          onSelect={(id) => {
-            setAccountId(id);
-            setView("form");
-          }}
-        />
-      ) : accounts.length === 0 ? (
+    <>
+    <MobileBottomSheet open={open} onOpenChange={onOpenChange} onRequestClose={requestClose} title={title}>
+      {accounts.length === 0 ? (
         <p className="text-[14px] font-medium leading-5 text-wl-muted">Add an account first (see Accounts) before tracking a holding.</p>
       ) : (
         <div className="flex flex-col gap-3">
@@ -143,8 +132,8 @@ export function MobileAddInvestmentSheet({ open, onOpenChange, editInvestment }:
               className="bg-transparent text-[16px] font-semibold leading-6 tracking-[-0.32px] text-wl-ink placeholder:text-wl-muted focus:outline-none"
             />
           </div>
-          <MobileFieldRow label="Asset class" value={ASSET_CLASS_LABEL[assetClass]} onClick={() => !isEdit && setView("assetClass")} />
-          <MobileFieldRow label="Account" value={accounts.find((a) => a.id === selectedAccountId)?.name ?? "Select"} onClick={() => setView("account")} />
+          <MobileFieldRow label="Asset class" value={ASSET_CLASS_LABEL[assetClass]} onClick={() => !isEdit && setAssetClassPickerOpen(true)} />
+          <MobileFieldRow label="Account" value={accounts.find((a) => a.id === selectedAccountId)?.name ?? "Select"} onClick={() => setAccountPickerOpen(true)} />
 
           {unitBased ? (
             isEdit && (
@@ -215,5 +204,46 @@ export function MobileAddInvestmentSheet({ open, onOpenChange, editInvestment }:
         </div>
       )}
     </MobileBottomSheet>
+
+    {assetClassPickerOpen && (
+      <MobileBottomSheet
+        open={assetClassPickerOpen}
+        onOpenChange={setAssetClassPickerOpen}
+        onRequestClose={() => setAssetClassPickerOpen(false)}
+        title="Asset class"
+        stacked
+      >
+        <MobileListPicker
+          options={ASSET_CLASSES.map((ac) => ({ id: ac, label: ASSET_CLASS_LABEL[ac] }))}
+          selectedId={assetClass}
+          onSelect={(id) => {
+            if (!isEdit) setAssetClass(id as AssetClass);
+            setAssetClassPickerOpen(false);
+          }}
+        />
+      </MobileBottomSheet>
+    )}
+
+    {accountPickerOpen && (
+      <MobileBottomSheet
+        open={accountPickerOpen}
+        onOpenChange={setAccountPickerOpen}
+        onRequestClose={() => setAccountPickerOpen(false)}
+        title="Account"
+        stacked
+      >
+        <MobileListPicker
+          options={accounts.map((a) => ({ id: a.id, label: a.name, subtitle: formatINR(a.balance) }))}
+          selectedId={selectedAccountId}
+          onSelect={(id) => {
+            setAccountId(id);
+            setAccountPickerOpen(false);
+          }}
+        />
+      </MobileBottomSheet>
+    )}
+
+    <MobileDiscardSheet open={confirmOpen} noun="investment" onKeepEditing={keepEditing} onDiscard={discardChanges} />
+    </>
   );
 }

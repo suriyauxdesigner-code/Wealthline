@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { MobileBottomSheet } from "./bottom-sheet";
 import { MobileFieldRow } from "./field-row";
 import { MobileListPicker } from "./list-picker";
+import { MobileDiscardSheet, useDiscardGuard, useIsDirty } from "./discard-guard";
 import { useAppStore } from "@/lib/store";
 import type { Liability, LiabilityType } from "@/lib/types";
 
@@ -30,7 +31,7 @@ export function MobileAddLiabilitySheet({ open, onOpenChange, editLiability }: M
   const updateLiability = useAppStore((s) => s.updateLiability);
   const deleteLiability = useAppStore((s) => s.deleteLiability);
 
-  const [view, setView] = React.useState<"form" | "type">("form");
+  const [typePickerOpen, setTypePickerOpen] = React.useState(false);
   const [name, setName] = React.useState(editLiability?.name ?? "");
   const [type, setType] = React.useState<LiabilityType>(editLiability?.type ?? "personal_loan");
   const [principal, setPrincipal] = React.useState(editLiability ? String(editLiability.principal) : "");
@@ -38,6 +39,9 @@ export function MobileAddLiabilitySheet({ open, onOpenChange, editLiability }: M
   const [interestRate, setInterestRate] = React.useState(editLiability ? String(editLiability.interestRate) : "");
   const [monthlyPayment, setMonthlyPayment] = React.useState(editLiability ? String(editLiability.monthlyPayment) : "");
   const [submitting, setSubmitting] = React.useState(false);
+
+  const isDirty = useIsDirty({ name, type, principal, outstanding, interestRate, monthlyPayment });
+  const { confirmOpen, requestClose, keepEditing, discardChanges } = useDiscardGuard(isDirty, () => onOpenChange(false));
 
   async function handleSubmit() {
     const numericPrincipal = Number(principal);
@@ -75,20 +79,11 @@ export function MobileAddLiabilitySheet({ open, onOpenChange, editLiability }: M
     onOpenChange(false);
   }
 
-  const title = view === "type" ? "Debt type" : isEdit ? "Edit liability" : "Add liability";
+  const title = isEdit ? "Edit liability" : "Add liability";
 
   return (
-    <MobileBottomSheet open={open} onOpenChange={onOpenChange} title={title}>
-      {view === "type" ? (
-        <MobileListPicker
-          options={TYPE_OPTIONS.map((o) => ({ id: o.value, label: o.label }))}
-          selectedId={type}
-          onSelect={(id) => {
-            setType(id as LiabilityType);
-            setView("form");
-          }}
-        />
-      ) : (
+    <>
+    <MobileBottomSheet open={open} onOpenChange={onOpenChange} onRequestClose={requestClose} title={title}>
         <div className="flex flex-col gap-3">
           <div className="flex h-16 flex-col justify-center gap-1 border-b border-wl-border">
             <label className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">Name</label>
@@ -99,7 +94,7 @@ export function MobileAddLiabilitySheet({ open, onOpenChange, editLiability }: M
               className="bg-transparent text-[16px] font-semibold leading-6 tracking-[-0.32px] text-wl-ink placeholder:text-wl-muted focus:outline-none"
             />
           </div>
-          <MobileFieldRow label="Type" value={TYPE_OPTIONS.find((o) => o.value === type)?.label ?? "Select"} onClick={() => setView("type")} />
+          <MobileFieldRow label="Type" value={TYPE_OPTIONS.find((o) => o.value === type)?.label ?? "Select"} onClick={() => setTypePickerOpen(true)} />
           <div className="flex h-16 flex-col justify-center gap-1 border-b border-wl-border">
             <label className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">Principal</label>
             <input
@@ -155,7 +150,28 @@ export function MobileAddLiabilitySheet({ open, onOpenChange, editLiability }: M
             </button>
           )}
         </div>
-      )}
     </MobileBottomSheet>
+
+    {typePickerOpen && (
+      <MobileBottomSheet
+        open={typePickerOpen}
+        onOpenChange={setTypePickerOpen}
+        onRequestClose={() => setTypePickerOpen(false)}
+        title="Debt type"
+        stacked
+      >
+        <MobileListPicker
+          options={TYPE_OPTIONS.map((o) => ({ id: o.value, label: o.label }))}
+          selectedId={type}
+          onSelect={(id) => {
+            setType(id as LiabilityType);
+            setTypePickerOpen(false);
+          }}
+        />
+      </MobileBottomSheet>
+    )}
+
+    <MobileDiscardSheet open={confirmOpen} noun="liability" onKeepEditing={keepEditing} onDiscard={discardChanges} />
+    </>
   );
 }

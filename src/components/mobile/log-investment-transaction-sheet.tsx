@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { MobileBottomSheet } from "./bottom-sheet";
 import { MobileDateField } from "./date-field";
+import { MobileDiscardSheet, useDiscardGuard, useIsDirty } from "./discard-guard";
 import { formatINR } from "@/lib/calculations";
 import { useAppStore } from "@/lib/store";
 import type { Investment, InvestmentTransaction, InvestmentTransactionType } from "@/lib/types";
@@ -55,6 +56,9 @@ export function MobileLogInvestmentTransactionSheet({
   const numericPrice = Number(price);
   const value = numericQuantity && numericPrice ? numericQuantity * numericPrice : 0;
 
+  const isDirty = useIsDirty({ type, quantity, price, amount, date });
+  const { confirmOpen, requestClose, keepEditing, discardChanges } = useDiscardGuard(isDirty, () => onOpenChange(false));
+
   async function handleSubmit() {
     const input = isDividend
       ? { type, quantity: 1, price: Number(amount), date }
@@ -86,7 +90,8 @@ export function MobileLogInvestmentTransactionSheet({
   }
 
   return (
-    <MobileBottomSheet open={open} onOpenChange={onOpenChange} title={isEdit ? "Edit transaction" : "Log transaction"}>
+    <>
+    <MobileBottomSheet open={open} onOpenChange={onOpenChange} onRequestClose={requestClose} title={isEdit ? "Edit transaction" : "Log transaction"}>
       <div className="flex flex-col gap-3">
         {openingBalance && !isEdit && (
           <p className="rounded-lg bg-wl-surface p-3 text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">
@@ -166,5 +171,8 @@ export function MobileLogInvestmentTransactionSheet({
         )}
       </div>
     </MobileBottomSheet>
+
+    <MobileDiscardSheet open={confirmOpen} noun="transaction" onKeepEditing={keepEditing} onDiscard={discardChanges} />
+    </>
   );
 }

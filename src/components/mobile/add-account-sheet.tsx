@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { MobileBottomSheet } from "./bottom-sheet";
 import { MobileFieldRow } from "./field-row";
 import { MobileListPicker } from "./list-picker";
+import { MobileDiscardSheet, useDiscardGuard, useIsDirty } from "./discard-guard";
 import { ACCOUNT_TYPE_OPTIONS, typeOptionsFor } from "@/components/add-account-dialog";
 import { useAppStore } from "@/lib/store";
 import type { Account } from "@/lib/types";
@@ -23,7 +24,7 @@ export function MobileAddAccountSheet({ open, onOpenChange, editAccount }: Mobil
   const deleteAccount = useAppStore((s) => s.deleteAccount);
 
   const typeOptions = React.useMemo(() => typeOptionsFor(editAccount), [editAccount]);
-  const [view, setView] = React.useState<"form" | "type">("form");
+  const [typePickerOpen, setTypePickerOpen] = React.useState(false);
   const [name, setName] = React.useState(editAccount?.name ?? "");
   const [typeIndex, setTypeIndex] = React.useState(() => {
     if (!editAccount) return 0;
@@ -33,6 +34,9 @@ export function MobileAddAccountSheet({ open, onOpenChange, editAccount }: Mobil
   const [institution, setInstitution] = React.useState(editAccount?.institution ?? "");
   const [balance, setBalance] = React.useState(editAccount ? String(editAccount.balance) : "");
   const [submitting, setSubmitting] = React.useState(false);
+
+  const isDirty = useIsDirty({ name, typeIndex, institution, balance });
+  const { confirmOpen, requestClose, keepEditing, discardChanges } = useDiscardGuard(isDirty, () => onOpenChange(false));
 
   async function handleSubmit() {
     if (!name) return;
@@ -70,20 +74,11 @@ export function MobileAddAccountSheet({ open, onOpenChange, editAccount }: Mobil
     onOpenChange(false);
   }
 
-  const title = view === "type" ? "Account type" : isEdit ? "Edit account" : "Add account";
+  const title = isEdit ? "Edit account" : "Add account";
 
   return (
-    <MobileBottomSheet open={open} onOpenChange={onOpenChange} title={title}>
-      {view === "type" ? (
-        <MobileListPicker
-          options={typeOptions.map((o, i) => ({ id: String(i), label: o.label }))}
-          selectedId={String(typeIndex)}
-          onSelect={(id) => {
-            setTypeIndex(Number(id));
-            setView("form");
-          }}
-        />
-      ) : (
+    <>
+    <MobileBottomSheet open={open} onOpenChange={onOpenChange} onRequestClose={requestClose} title={title}>
         <div className="flex flex-col gap-3">
           <div className="flex h-16 flex-col justify-center gap-1 border-b border-wl-border">
             <label className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">Name</label>
@@ -94,7 +89,7 @@ export function MobileAddAccountSheet({ open, onOpenChange, editAccount }: Mobil
               className="bg-transparent text-[16px] font-semibold leading-6 tracking-[-0.32px] text-wl-ink placeholder:text-wl-muted focus:outline-none"
             />
           </div>
-          <MobileFieldRow label="Type" value={typeOptions[typeIndex]?.label ?? "Select"} onClick={() => setView("type")} />
+          <MobileFieldRow label="Type" value={typeOptions[typeIndex]?.label ?? "Select"} onClick={() => setTypePickerOpen(true)} />
           <div className="flex h-16 flex-col justify-center gap-1 border-b border-wl-border">
             <label className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">Institution · optional</label>
             <input
@@ -129,7 +124,28 @@ export function MobileAddAccountSheet({ open, onOpenChange, editAccount }: Mobil
             </button>
           )}
         </div>
-      )}
     </MobileBottomSheet>
+
+    {typePickerOpen && (
+      <MobileBottomSheet
+        open={typePickerOpen}
+        onOpenChange={setTypePickerOpen}
+        onRequestClose={() => setTypePickerOpen(false)}
+        title="Account type"
+        stacked
+      >
+        <MobileListPicker
+          options={typeOptions.map((o, i) => ({ id: String(i), label: o.label }))}
+          selectedId={String(typeIndex)}
+          onSelect={(id) => {
+            setTypeIndex(Number(id));
+            setTypePickerOpen(false);
+          }}
+        />
+      </MobileBottomSheet>
+    )}
+
+    <MobileDiscardSheet open={confirmOpen} noun="account" onKeepEditing={keepEditing} onDiscard={discardChanges} />
+    </>
   );
 }

@@ -4,6 +4,7 @@ import * as React from "react";
 import { toast } from "sonner";
 
 import { MobileBottomSheet } from "./bottom-sheet";
+import { MobileDiscardSheet, useDiscardGuard, useIsDirty } from "./discard-guard";
 import { useAppStore } from "@/lib/store";
 
 function NumberField({
@@ -58,6 +59,19 @@ export function MobileFireAssumptionsSheet({ open, onOpenChange }: MobileFireAss
   const [inflation, setInflation] = React.useState(String(fireProfile.inflation));
   const [incomeGrowth, setIncomeGrowth] = React.useState(String(fireProfile.incomeGrowth));
 
+  const isDirty = useIsDirty({
+    currentAge,
+    targetAge,
+    lifeExpectancy,
+    monthlySpending,
+    withdrawalRate,
+    monthlyInvestment,
+    expectedReturn,
+    inflation,
+    incomeGrowth,
+  });
+  const { confirmOpen, requestClose, keepEditing, discardChanges } = useDiscardGuard(isDirty, () => onOpenChange(false));
+
   function handleUpdate() {
     updateFireProfile({
       currentAge: Number(currentAge) || 0,
@@ -75,12 +89,14 @@ export function MobileFireAssumptionsSheet({ open, onOpenChange }: MobileFireAss
   }
 
   return (
+    <>
     <MobileBottomSheet
       open={open}
       onOpenChange={(v) => {
         onOpenChange(v);
         if (!v) setStep(1);
       }}
+      onRequestClose={requestClose}
       title={step === 1 ? "Edit assumptions" : "Financial assumptions"}
     >
       <p className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-muted">
@@ -119,5 +135,8 @@ export function MobileFireAssumptionsSheet({ open, onOpenChange }: MobileFireAss
         )}
       </div>
     </MobileBottomSheet>
+
+    <MobileDiscardSheet open={confirmOpen} noun="assumptions" onKeepEditing={keepEditing} onDiscard={discardChanges} />
+    </>
   );
 }

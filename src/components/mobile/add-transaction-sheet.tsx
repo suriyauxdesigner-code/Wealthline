@@ -7,8 +7,10 @@ import { MobileBottomSheet } from "./bottom-sheet";
 import { MobileFieldRow } from "./field-row";
 import { MobileListPicker } from "./list-picker";
 import { MobileDateField } from "./date-field";
+import { MobileDiscardSheet, useDiscardGuard, useIsDirty } from "./discard-guard";
 import { Switch } from "@/components/ui/switch";
 import { resolveIcon } from "@/components/finance/icon-map";
+import { formatINR } from "@/lib/calculations";
 import { useAppStore } from "@/lib/store";
 import type { Transaction, TransactionType } from "@/lib/types";
 
@@ -68,7 +70,6 @@ export function MobileAddTransactionSheet({
   const addTransaction = useAppStore((s) => s.addTransaction);
   const updateTransaction = useAppStore((s) => s.updateTransaction);
 
-  const [view, setView] = React.useState<"form" | "picker">("form");
   const [pickerTarget, setPickerTarget] = React.useState<PickerTarget | null>(null);
 
   const [amount, setAmount] = React.useState(editTransaction ? String(editTransaction.amount) : "");
@@ -87,9 +88,11 @@ export function MobileAddTransactionSheet({
   const relevantCategories = categories.filter((c) => c.kind === TYPE_TO_CATEGORY_KIND[type]);
   const showDebtField = type === "expense" || type === "transfer";
 
+  const isDirty = useIsDirty({ amount, merchant, categoryId, accountId, toAccountId, liabilityId, date, notes, tags, recurring });
+  const { confirmOpen, requestClose, keepEditing, discardChanges } = useDiscardGuard(isDirty, () => onOpenChange(false));
+
   function openPicker(target: PickerTarget) {
     setPickerTarget(target);
-    setView("picker");
   }
 
   async function handleSubmit() {
@@ -143,29 +146,29 @@ export function MobileAddTransactionSheet({
         selectedId: categoryId,
         onSelect: (id: string) => {
           setCategoryId(id);
-          setView("form");
+          setPickerTarget(null);
         },
       };
     }
     if (pickerTarget === "fromAccount") {
       return {
         title: FROM_ACCOUNT_LABEL[type],
-        options: accounts.map((a) => ({ id: a.id, label: a.name })),
+        options: accounts.map((a) => ({ id: a.id, label: a.name, subtitle: formatINR(a.balance) })),
         selectedId: accountId,
         onSelect: (id: string) => {
           setAccountId(id);
-          setView("form");
+          setPickerTarget(null);
         },
       };
     }
     if (pickerTarget === "toAccount") {
       return {
         title: "To account",
-        options: accounts.filter((a) => a.id !== accountId).map((a) => ({ id: a.id, label: a.name })),
+        options: accounts.filter((a) => a.id !== accountId).map((a) => ({ id: a.id, label: a.name, subtitle: formatINR(a.balance) })),
         selectedId: toAccountId,
         onSelect: (id: string) => {
           setToAccountId(id);
-          setView("form");
+          setPickerTarget(null);
         },
       };
     }
@@ -176,26 +179,24 @@ export function MobileAddTransactionSheet({
         selectedId: liabilityId,
         onSelect: (id: string) => {
           setLiabilityId(id);
-          setView("form");
+          setPickerTarget(null);
         },
       };
     }
     return null;
   })();
 
-  const title = view === "picker" ? pickerConfig?.title ?? "" : isEdit ? EDIT_SHEET_TITLE[type] : SHEET_TITLE[type];
+  const title = isEdit ? EDIT_SHEET_TITLE[type] : SHEET_TITLE[type];
+  const noun = type === "transfer" ? "transfer" : type;
 
   return (
+    <>
     <MobileBottomSheet
       open={open}
       onOpenChange={onOpenChange}
+      onRequestClose={requestClose}
       title={title}
     >
-      {view === "picker" && pickerConfig && (
-        <MobileListPicker options={pickerConfig.options} selectedId={pickerConfig.selectedId} onSelect={pickerConfig.onSelect} />
-      )}
-
-      {view === "form" && (
         <div className="flex flex-col gap-3">
           <div className="flex flex-col items-start gap-1">
             <label htmlFor="mobile-tx-amount" className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">
@@ -310,7 +311,21 @@ export function MobileAddTransactionSheet({
             {submitting ? "Saving…" : isEdit ? "Save changes" : SAVE_LABEL[type]}
           </button>
         </div>
-      )}
     </MobileBottomSheet>
+
+    {pickerTarget && pickerConfig && (
+      <MobileBottomSheet
+        open={!!pickerTarget}
+        onOpenChange={(v) => !v && setPickerTarget(null)}
+        onRequestClose={() => setPickerTarget(null)}
+        title={pickerConfig.title}
+        stacked
+      >
+        <MobileListPicker options={pickerConfig.options} selectedId={pickerConfig.selectedId} onSelect={pickerConfig.onSelect} />
+      </MobileBottomSheet>
+    )}
+
+    <MobileDiscardSheet open={confirmOpen} noun={noun} onKeepEditing={keepEditing} onDiscard={discardChanges} />
+    </>
   );
 }

@@ -7,6 +7,7 @@ import { MobileBottomSheet } from "./bottom-sheet";
 import { MobileFieldRow } from "./field-row";
 import { MobileListPicker } from "./list-picker";
 import { MobileDateField } from "./date-field";
+import { MobileDiscardSheet, useDiscardGuard, useIsDirty } from "./discard-guard";
 import { formatINR } from "@/lib/calculations";
 import { isUnitBasedAssetClass } from "@/lib/investment-selectors";
 import { useAppStore } from "@/lib/store";
@@ -28,7 +29,9 @@ export function MobileInvestmentContributionSheet({ open, onOpenChange }: Mobile
 
   const valueBasedHoldings = investments.filter((i) => !isUnitBasedAssetClass(i.assetClass));
 
-  const [view, setView] = React.useState<"form" | "holding" | "sourceAccount" | "investmentAccount">("form");
+  const [holdingPickerOpen, setHoldingPickerOpen] = React.useState(false);
+  const [sourceAccountPickerOpen, setSourceAccountPickerOpen] = React.useState(false);
+  const [investmentAccountPickerOpen, setInvestmentAccountPickerOpen] = React.useState(false);
   const [amount, setAmount] = React.useState("");
   const [investmentId, setInvestmentId] = React.useState(valueBasedHoldings[0]?.id ?? "");
   const [description, setDescription] = React.useState("Monthly contribution");
@@ -42,11 +45,14 @@ export function MobileInvestmentContributionSheet({ open, onOpenChange }: Mobile
 
   const selectedHolding = investments.find((i) => i.id === investmentId);
 
+  const isDirty = useIsDirty({ amount, investmentId, description, sourceAccountId, investmentAccountId, date, notes, tags });
+  const { confirmOpen, requestClose, keepEditing, discardChanges } = useDiscardGuard(isDirty, () => onOpenChange(false));
+
   function selectHolding(id: string) {
     setInvestmentId(id);
     const holding = investments.find((i) => i.id === id);
     if (holding) setInvestmentAccountId(holding.accountId);
-    setView("form");
+    setHoldingPickerOpen(false);
   }
 
   async function handleSubmit() {
@@ -75,31 +81,10 @@ export function MobileInvestmentContributionSheet({ open, onOpenChange }: Mobile
     }
   }
 
-  const title = view === "holding" ? "Holding" : view === "sourceAccount" ? "Source account" : view === "investmentAccount" ? "Investment account" : "Investment contribution";
-
   return (
-    <MobileBottomSheet open={open} onOpenChange={onOpenChange} title={title}>
-      {view === "holding" ? (
-        <MobileListPicker options={valueBasedHoldings.map((h) => ({ id: h.id, label: h.name }))} selectedId={investmentId} onSelect={selectHolding} />
-      ) : view === "sourceAccount" ? (
-        <MobileListPicker
-          options={accounts.map((a) => ({ id: a.id, label: a.name }))}
-          selectedId={sourceAccountId}
-          onSelect={(id) => {
-            setSourceAccountId(id);
-            setView("form");
-          }}
-        />
-      ) : view === "investmentAccount" ? (
-        <MobileListPicker
-          options={accounts.map((a) => ({ id: a.id, label: a.name }))}
-          selectedId={investmentAccountId}
-          onSelect={(id) => {
-            setInvestmentAccountId(id);
-            setView("form");
-          }}
-        />
-      ) : valueBasedHoldings.length === 0 ? (
+    <>
+    <MobileBottomSheet open={open} onOpenChange={onOpenChange} onRequestClose={requestClose} title="Investment contribution">
+      {valueBasedHoldings.length === 0 ? (
         <p className="text-[14px] font-medium leading-5 text-wl-muted">
           Add an FD, EPF, PPF, or Bonds holding first — contributions apply to those.
         </p>
@@ -117,7 +102,7 @@ export function MobileInvestmentContributionSheet({ open, onOpenChange }: Mobile
             />
           </div>
 
-          <MobileFieldRow label="Holding" value={selectedHolding?.name ?? "Select"} onClick={() => setView("holding")} />
+          <MobileFieldRow label="Holding" value={selectedHolding?.name ?? "Select"} onClick={() => setHoldingPickerOpen(true)} />
           <div className="flex h-16 flex-col justify-center gap-1 border-b border-wl-border">
             <label className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">Description</label>
             <input
@@ -126,8 +111,8 @@ export function MobileInvestmentContributionSheet({ open, onOpenChange }: Mobile
               className="bg-transparent text-[16px] font-semibold leading-6 tracking-[-0.32px] text-wl-ink placeholder:text-wl-muted focus:outline-none"
             />
           </div>
-          <MobileFieldRow label="Source account" value={accounts.find((a) => a.id === sourceAccountId)?.name ?? "Select"} onClick={() => setView("sourceAccount")} />
-          <MobileFieldRow label="Investment account" value={accounts.find((a) => a.id === investmentAccountId)?.name ?? "Select"} onClick={() => setView("investmentAccount")} />
+          <MobileFieldRow label="Source account" value={accounts.find((a) => a.id === sourceAccountId)?.name ?? "Select"} onClick={() => setSourceAccountPickerOpen(true)} />
+          <MobileFieldRow label="Investment account" value={accounts.find((a) => a.id === investmentAccountId)?.name ?? "Select"} onClick={() => setInvestmentAccountPickerOpen(true)} />
 
           <MobileDateField label="Date" value={date} onChange={setDate} />
 
@@ -169,5 +154,58 @@ export function MobileInvestmentContributionSheet({ open, onOpenChange }: Mobile
         </div>
       )}
     </MobileBottomSheet>
+
+    {holdingPickerOpen && (
+      <MobileBottomSheet
+        open={holdingPickerOpen}
+        onOpenChange={setHoldingPickerOpen}
+        onRequestClose={() => setHoldingPickerOpen(false)}
+        title="Holding"
+        stacked
+      >
+        <MobileListPicker options={valueBasedHoldings.map((h) => ({ id: h.id, label: h.name }))} selectedId={investmentId} onSelect={selectHolding} />
+      </MobileBottomSheet>
+    )}
+
+    {sourceAccountPickerOpen && (
+      <MobileBottomSheet
+        open={sourceAccountPickerOpen}
+        onOpenChange={setSourceAccountPickerOpen}
+        onRequestClose={() => setSourceAccountPickerOpen(false)}
+        title="Source account"
+        stacked
+      >
+        <MobileListPicker
+          options={accounts.map((a) => ({ id: a.id, label: a.name, subtitle: formatINR(a.balance) }))}
+          selectedId={sourceAccountId}
+          onSelect={(id) => {
+            setSourceAccountId(id);
+            setSourceAccountPickerOpen(false);
+          }}
+        />
+      </MobileBottomSheet>
+    )}
+
+    {investmentAccountPickerOpen && (
+      <MobileBottomSheet
+        open={investmentAccountPickerOpen}
+        onOpenChange={setInvestmentAccountPickerOpen}
+        onRequestClose={() => setInvestmentAccountPickerOpen(false)}
+        title="Investment account"
+        stacked
+      >
+        <MobileListPicker
+          options={accounts.map((a) => ({ id: a.id, label: a.name, subtitle: formatINR(a.balance) }))}
+          selectedId={investmentAccountId}
+          onSelect={(id) => {
+            setInvestmentAccountId(id);
+            setInvestmentAccountPickerOpen(false);
+          }}
+        />
+      </MobileBottomSheet>
+    )}
+
+    <MobileDiscardSheet open={confirmOpen} noun="contribution" onKeepEditing={keepEditing} onDiscard={discardChanges} />
+    </>
   );
 }
