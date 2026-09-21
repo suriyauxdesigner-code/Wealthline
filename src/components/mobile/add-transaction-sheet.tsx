@@ -13,6 +13,7 @@ import { MobileDateField } from "./date-field";
 import { MobileDiscardSheet, useDiscardGuard, useIsDirty } from "./discard-guard";
 import { Switch } from "@/components/ui/switch";
 import { resolveIcon } from "@/components/finance/icon-map";
+import { AccountIcon } from "@/components/finance/account-icon";
 import { MobileMerchantField } from "./merchant-autocomplete-field";
 import { formatINR } from "@/lib/calculations";
 import { useAppStore } from "@/lib/store";
@@ -181,7 +182,12 @@ export function MobileAddTransactionSheet({
     if (pickerTarget === "fromAccount") {
       return {
         title: FROM_ACCOUNT_LABEL[type],
-        options: accounts.map((a) => ({ id: a.id, label: a.name, subtitle: formatINR(a.balance) })),
+        options: accounts.map((a) => ({
+          id: a.id,
+          label: a.name,
+          subtitle: formatINR(a.balance),
+          icon: <AccountIcon name={a.name} institution={a.institution} group={a.group} className="size-6 shrink-0 text-wl-ink" />,
+        })),
         selectedId: accountId,
         onSelect: (id: string) => {
           setAccountId(id);
@@ -192,7 +198,12 @@ export function MobileAddTransactionSheet({
     if (pickerTarget === "toAccount") {
       return {
         title: "To account",
-        options: accounts.filter((a) => a.id !== accountId).map((a) => ({ id: a.id, label: a.name, subtitle: formatINR(a.balance) })),
+        options: accounts.filter((a) => a.id !== accountId).map((a) => ({
+          id: a.id,
+          label: a.name,
+          subtitle: formatINR(a.balance),
+          icon: <AccountIcon name={a.name} institution={a.institution} group={a.group} className="size-6 shrink-0 text-wl-ink" />,
+        })),
         selectedId: toAccountId,
         onSelect: (id: string) => {
           setToAccountId(id);

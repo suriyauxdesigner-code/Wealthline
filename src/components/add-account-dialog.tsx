@@ -17,6 +17,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AccountIcon } from "@/components/finance/account-icon";
+import { MerchantAutocomplete } from "@/components/finance/merchant-autocomplete";
 import { useAppStore } from "@/lib/store";
 import type { Account, AccountGroup, AccountType } from "@/lib/types";
 
@@ -69,6 +71,11 @@ export function AddAccountDialog({ editAccount, trigger, open: openProp, onOpenC
 
   const addAccount = useAppStore((s) => s.addAccount);
   const updateAccount = useAppStore((s) => s.updateAccount);
+  const accounts = useAppStore((s) => s.accounts);
+  const pastInstitutionNames = React.useMemo(
+    () => accounts.map((a) => a.institution).filter((i): i is string => !!i && i !== "—"),
+    [accounts]
+  );
 
   const [name, setName] = React.useState(editAccount?.name ?? "");
   const [institution, setInstitution] = React.useState(editAccount?.institution ?? "");
@@ -147,8 +154,24 @@ export function AddAccountDialog({ editAccount, trigger, open: openProp, onOpenC
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Institution (optional)</Label>
-              <Input value={institution} onChange={(e) => setInstitution(e.target.value)} placeholder="e.g. ICICI Bank" />
+              <Label htmlFor="institution">Institution (optional)</Label>
+              <div className="flex items-center gap-2">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted">
+                  <AccountIcon
+                    name={name}
+                    institution={institution}
+                    group={typeOptions[Number(typeIndex)]?.group ?? "bank"}
+                    className="size-4 text-muted-foreground"
+                  />
+                </div>
+                <MerchantAutocomplete
+                  id="institution"
+                  value={institution}
+                  onChange={setInstitution}
+                  pastMerchantNames={pastInstitutionNames}
+                  placeholder="e.g. ICICI Bank"
+                />
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label>Balance</Label>

@@ -1,10 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { Banknote, CreditCard, Landmark, LineChart, MoreHorizontal, Pencil, PiggyBank, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AddAccountDialog } from "@/components/add-account-dialog";
+import { AccountIcon } from "@/components/finance/account-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -26,14 +27,6 @@ import { useAppStore } from "@/lib/store";
 import { formatINR } from "@/lib/calculations";
 import type { Account, AccountGroup } from "@/lib/types";
 
-const GROUP_ICON: Record<AccountGroup, typeof Banknote> = {
-  cash: Banknote,
-  bank: Landmark,
-  credit: CreditCard,
-  investment: LineChart,
-  other: PiggyBank,
-};
-
 const GROUP_LABEL: Record<AccountGroup, string> = {
   cash: "Cash",
   bank: "Bank",
@@ -43,7 +36,6 @@ const GROUP_LABEL: Record<AccountGroup, string> = {
 };
 
 export function AccountCard({ account }: { account: Account }) {
-  const Icon = GROUP_ICON[account.group];
   const deleteAccount = useAppStore((s) => s.deleteAccount);
   const [editOpen, setEditOpen] = React.useState(false);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
@@ -59,7 +51,12 @@ export function AccountCard({ account }: { account: Account }) {
       <div className="flex items-start justify-between px-5">
         <div className="flex items-center gap-2.5">
           <div className="flex size-8 items-center justify-center rounded-md bg-muted">
-            <Icon className="size-4 text-muted-foreground" />
+            <AccountIcon
+              name={account.name}
+              institution={account.institution}
+              group={account.group}
+              className="size-4 text-muted-foreground"
+            />
           </div>
           <div>
             <p className="text-sm font-medium leading-tight">{account.name}</p>

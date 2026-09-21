@@ -7,6 +7,7 @@ import { Reveal } from "cube-motion/react";
 import { AddAccountDialog } from "@/components/add-account-dialog";
 import { MobileAddAccountSheet } from "@/components/mobile/add-account-sheet";
 import { AccountCard } from "@/components/finance/account-card";
+import { AccountIcon } from "@/components/finance/account-icon";
 import { useAppStore } from "@/lib/store";
 import { formatINR } from "@/lib/calculations";
 import type { Account, AccountGroup } from "@/lib/types";
@@ -67,10 +68,16 @@ export default function AccountsPage() {
                       <button
                         key={a.id}
                         onClick={() => setMobileEditing(a)}
-                        className="flex items-center justify-between text-left"
+                        className="flex items-center gap-3 text-left"
                       >
-                        <span className="text-[16px] font-semibold leading-6 tracking-[-0.32px] text-wl-ink">{a.name}</span>
-                        <span className="text-[16px] font-semibold leading-6 tracking-[-0.32px] text-wl-ink">
+                        <AccountIcon
+                          name={a.name}
+                          institution={a.institution}
+                          group={a.group}
+                          className="size-5 shrink-0 text-wl-muted"
+                        />
+                        <span className="min-w-0 flex-1 truncate text-[16px] font-semibold leading-6 tracking-[-0.32px] text-wl-ink">{a.name}</span>
+                        <span className="shrink-0 text-[16px] font-semibold leading-6 tracking-[-0.32px] text-wl-ink">
                           {a.isLiabilityAccount && a.balance > 0 ? "−" : ""}
                           {formatINR(a.balance)}
                         </span>

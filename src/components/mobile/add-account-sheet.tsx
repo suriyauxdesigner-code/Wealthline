@@ -8,7 +8,9 @@ import { MobileBottomSheet } from "./bottom-sheet";
 import { MobileFieldRow } from "./field-row";
 import { MobileListPicker } from "./list-picker";
 import { MobileDiscardSheet, useDiscardGuard, useIsDirty } from "./discard-guard";
+import { MobileBrandSearchField } from "./brand-search-field";
 import { ACCOUNT_TYPE_OPTIONS, typeOptionsFor } from "@/components/add-account-dialog";
+import { AccountIcon } from "@/components/finance/account-icon";
 import { useAppStore } from "@/lib/store";
 import type { Account } from "@/lib/types";
 
@@ -23,6 +25,11 @@ export function MobileAddAccountSheet({ open, onOpenChange, editAccount }: Mobil
   const addAccount = useAppStore((s) => s.addAccount);
   const updateAccount = useAppStore((s) => s.updateAccount);
   const deleteAccount = useAppStore((s) => s.deleteAccount);
+  const accounts = useAppStore((s) => s.accounts);
+  const pastInstitutionNames = React.useMemo(
+    () => accounts.map((a) => a.institution).filter((i): i is string => !!i && i !== "—"),
+    [accounts]
+  );
 
   const typeOptions = React.useMemo(() => typeOptionsFor(editAccount), [editAccount]);
   const [typePickerOpen, setTypePickerOpen] = React.useState(false);
@@ -91,15 +98,21 @@ export function MobileAddAccountSheet({ open, onOpenChange, editAccount }: Mobil
             />
           </div>
           <MobileFieldRow label="Type" value={typeOptions[typeIndex]?.label ?? "Select"} onClick={() => setTypePickerOpen(true)} />
-          <div className="flex h-16 flex-col justify-center gap-1 border-b border-wl-border">
-            <label className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">Institution · optional</label>
-            <input
-              value={institution}
-              onChange={(e) => setInstitution(e.target.value)}
-              placeholder="e.g. State Bank of India"
-              className="bg-transparent text-[16px] font-semibold leading-6 tracking-[-0.32px] text-wl-ink placeholder:text-wl-muted focus:outline-none"
-            />
-          </div>
+          <MobileBrandSearchField
+            label="Institution · optional"
+            placeholder="e.g. State Bank of India"
+            value={institution}
+            onChange={setInstitution}
+            pastNames={pastInstitutionNames}
+            icon={
+              <AccountIcon
+                name={name}
+                institution={institution}
+                group={typeOptions[typeIndex]?.group ?? "bank"}
+                className="size-6 shrink-0 text-wl-muted"
+              />
+            }
+          />
           <div className="flex h-16 flex-col justify-center gap-1 border-b border-wl-border">
             <label className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">Opening balance</label>
             <input

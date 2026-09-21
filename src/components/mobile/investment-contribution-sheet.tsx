@@ -11,6 +11,7 @@ import { MobileDateField } from "./date-field";
 import { MobileDiscardSheet, useDiscardGuard, useIsDirty } from "./discard-guard";
 import { formatINR } from "@/lib/calculations";
 import { isUnitBasedAssetClass } from "@/lib/investment-selectors";
+import { AccountIcon } from "@/components/finance/account-icon";
 import { useAppStore } from "@/lib/store";
 
 interface MobileInvestmentContributionSheetProps {
@@ -175,7 +176,12 @@ export function MobileInvestmentContributionSheet({ open, onOpenChange }: Mobile
         stacked
       >
         <MobileListPicker
-          options={accounts.map((a) => ({ id: a.id, label: a.name, subtitle: formatINR(a.balance) }))}
+          options={accounts.map((a) => ({
+            id: a.id,
+            label: a.name,
+            subtitle: formatINR(a.balance),
+            icon: <AccountIcon name={a.name} institution={a.institution} group={a.group} className="size-6 shrink-0 text-wl-ink" />,
+          }))}
           selectedId={sourceAccountId}
           onSelect={(id) => {
             setSourceAccountId(id);
@@ -194,7 +200,12 @@ export function MobileInvestmentContributionSheet({ open, onOpenChange }: Mobile
         stacked
       >
         <MobileListPicker
-          options={accounts.map((a) => ({ id: a.id, label: a.name, subtitle: formatINR(a.balance) }))}
+          options={accounts.map((a) => ({
+            id: a.id,
+            label: a.name,
+            subtitle: formatINR(a.balance),
+            icon: <AccountIcon name={a.name} institution={a.institution} group={a.group} className="size-6 shrink-0 text-wl-ink" />,
+          }))}
           selectedId={investmentAccountId}
           onSelect={(id) => {
             setInvestmentAccountId(id);

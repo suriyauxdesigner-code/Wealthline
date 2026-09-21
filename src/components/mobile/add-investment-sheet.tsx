@@ -11,6 +11,7 @@ import { MobileListPicker } from "./list-picker";
 import { MobileDiscardSheet, useDiscardGuard, useIsDirty } from "./discard-guard";
 import { ASSET_CLASS_LABEL, isUnitBasedAssetClass } from "@/lib/investment-selectors";
 import { formatINR } from "@/lib/calculations";
+import { AccountIcon } from "@/components/finance/account-icon";
 import { useAppStore } from "@/lib/store";
 import type { AssetClass, Investment } from "@/lib/types";
 
@@ -234,7 +235,12 @@ export function MobileAddInvestmentSheet({ open, onOpenChange, editInvestment }:
         stacked
       >
         <MobileListPicker
-          options={accounts.map((a) => ({ id: a.id, label: a.name, subtitle: formatINR(a.balance) }))}
+          options={accounts.map((a) => ({
+            id: a.id,
+            label: a.name,
+            subtitle: formatINR(a.balance),
+            icon: <AccountIcon name={a.name} institution={a.institution} group={a.group} className="size-6 shrink-0 text-wl-ink" />,
+          }))}
           selectedId={selectedAccountId}
           onSelect={(id) => {
             setAccountId(id);
