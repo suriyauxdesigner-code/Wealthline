@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { LineChart, MoreHorizontal, Pencil, Plus, TrendingUp, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { Reveal } from "cube-motion/react";
 
 import { AddInvestmentDialog } from "@/components/add-investment-dialog";
 import { MobileAddInvestmentSheet } from "@/components/mobile/add-investment-sheet";
@@ -73,7 +74,7 @@ export default function InvestmentsPage() {
               <p className="text-[20px] font-semibold leading-7 tracking-[-0.8px] text-wl-ink">Holdings</p>
               <span className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-muted">{holdings.length} assets</span>
             </div>
-            <div className="mt-3 flex flex-col gap-3">
+            <Reveal as="div" targets="children" className="mt-3 flex flex-col gap-3">
               {holdings.map((h) => (
                 <Link key={h.id} href={`/investments/${h.id}`} className="flex items-center justify-between rounded-lg bg-wl-surface p-4">
                   <div className="min-w-0">
@@ -89,7 +90,7 @@ export default function InvestmentsPage() {
                   </div>
                 </Link>
               ))}
-            </div>
+            </Reveal>
 
             <button
               type="button"

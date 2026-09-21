@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Plus } from "lucide-react";
+import { Reveal } from "cube-motion/react";
 
 import { AddAccountDialog } from "@/components/add-account-dialog";
 import { MobileAddAccountSheet } from "@/components/mobile/add-account-sheet";
@@ -55,7 +56,7 @@ export default function AccountsPage() {
             <p className="text-[48px] font-semibold leading-[56px] tracking-[-3.84px] text-wl-ink">{formatINR(cashAndBank)}</p>
             <p className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">Across {accounts.length} accounts</p>
 
-            <div className="mt-3 flex flex-col gap-3">
+            <Reveal as="div" targets="children" className="mt-3 flex flex-col gap-3">
               {GROUP_ORDER.map((group) => {
                 const groupAccounts = accounts.filter((a) => a.group === group);
                 if (groupAccounts.length === 0) return null;
@@ -81,7 +82,7 @@ export default function AccountsPage() {
                   </div>
                 );
               })}
-            </div>
+            </Reveal>
           </>
         )}
       </div>

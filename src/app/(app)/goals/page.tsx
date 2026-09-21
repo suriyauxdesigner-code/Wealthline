@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import { Reveal } from "cube-motion/react";
 
 import { AddGoalDialog } from "@/components/add-goal-dialog";
 import { MobileAddGoalSheet } from "@/components/mobile/add-goal-sheet";
@@ -45,7 +46,7 @@ export default function GoalsPage() {
         {goals.length === 0 ? (
           <p className="mt-6 text-center text-[14px] font-medium text-wl-muted">No goals yet — tap + to start one.</p>
         ) : (
-          <div className="mt-3 flex flex-col gap-3">
+          <Reveal as="div" targets="children" className="mt-3 flex flex-col gap-3">
             {goals.map((goal) => {
               const progress = calcGoalProgress(goal.currentAmount, goal.targetAmount);
               const required = calcRequiredMonthlyContribution(goal.currentAmount, goal.targetAmount, goal.targetDate);
@@ -70,7 +71,7 @@ export default function GoalsPage() {
                 </button>
               );
             })}
-          </div>
+          </Reveal>
         )}
       </div>
 

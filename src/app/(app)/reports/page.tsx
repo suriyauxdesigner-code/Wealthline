@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Download, LineChart } from "lucide-react";
+import { Rise } from "cube-motion/react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -83,7 +84,7 @@ export default function ReportsPage() {
 
   return (
     <>
-      <div className="wl-mobile -mx-4 -mt-5 min-h-svh bg-wl-canvas px-6 pt-3 pb-6 lg:hidden">
+      <Rise as="div" targets="children" className="wl-mobile -mx-4 -mt-5 min-h-svh bg-wl-canvas px-6 pt-3 pb-6 lg:hidden">
         <p className="text-[28px] font-semibold leading-9 tracking-[-1.12px] text-wl-ink">Reports</p>
 
         <button
@@ -129,7 +130,7 @@ export default function ReportsPage() {
         </div>
 
         <p className="mt-3 text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">Choose a longer period to compare recorded months.</p>
-      </div>
+      </Rise>
 
       <div className="hidden space-y-6 lg:block">
       <div className="flex items-center justify-between">

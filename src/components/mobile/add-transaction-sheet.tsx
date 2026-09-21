@@ -3,6 +3,8 @@
 import * as React from "react";
 import { toast } from "sonner";
 
+import { Rise, Morph } from "cube-motion/react";
+
 import { MobileBottomSheet } from "./bottom-sheet";
 import { MobileFieldRow } from "./field-row";
 import { MobileListPicker } from "./list-picker";
@@ -262,11 +264,10 @@ export function MobileAddTransactionSheet({
                   </span>
                 )}
               </div>
-              <span className="text-[18px] text-wl-muted">{moreOpen ? "−" : "+"}</span>
+              <Morph active={moreOpen} off="+" on="−" className="text-[18px] text-wl-muted" />
             </button>
 
-            {moreOpen && (
-              <div className="flex flex-col gap-3 pb-1">
+            <Rise show={moreOpen} className="flex flex-col gap-3 pb-1">
                 <div className="flex h-16 flex-col justify-center gap-1 border-b border-wl-border">
                   <label className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">Notes</label>
                   <input
@@ -298,8 +299,7 @@ export function MobileAddTransactionSheet({
                     <Switch checked={recurring} onCheckedChange={setRecurring} />
                   </div>
                 )}
-              </div>
-            )}
+            </Rise>
           </div>
 
           <button
@@ -308,7 +308,7 @@ export function MobileAddTransactionSheet({
             onClick={handleSubmit}
             className="flex h-[52px] items-center justify-center rounded-lg bg-wl-accent text-[15px] font-semibold tracking-[-0.6px] text-white disabled:opacity-60"
           >
-            {submitting ? "Saving…" : isEdit ? "Save changes" : SAVE_LABEL[type]}
+            <Morph active={submitting} off={isEdit ? "Save changes" : SAVE_LABEL[type]} on="Saving…" />
           </button>
         </div>
     </MobileBottomSheet>

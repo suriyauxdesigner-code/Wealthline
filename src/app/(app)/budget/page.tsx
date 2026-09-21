@@ -3,6 +3,7 @@
 import * as React from "react";
 import { ArrowDownRight, ArrowUpRight, MoreHorizontal, Plus, Trash2, Wallet } from "lucide-react";
 import { toast } from "sonner";
+import { Reveal } from "cube-motion/react";
 
 import { AddBudgetDialog } from "@/components/add-budget-dialog";
 import { MobileAddBudgetSheet } from "@/components/mobile/add-budget-sheet";
@@ -74,7 +75,7 @@ export default function BudgetPage() {
             <div className="mt-6 flex items-center justify-between">
               <p className="text-[20px] font-semibold leading-7 tracking-[-0.8px] text-wl-ink">Your categories</p>
             </div>
-            <div className="mt-3 flex flex-col gap-3">
+            <Reveal as="div" targets="children" className="mt-3 flex flex-col gap-3">
               {lines.map((line) => (
                 <button
                   key={line.budget.id}
@@ -95,7 +96,7 @@ export default function BudgetPage() {
                   </p>
                 </button>
               ))}
-            </div>
+            </Reveal>
           </>
         )}
       </div>

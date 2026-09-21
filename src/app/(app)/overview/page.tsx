@@ -5,6 +5,8 @@ import Link from "next/link";
 import { ArrowDown, ArrowLeftRight, Landmark, LineChart, Plus, PiggyBank, TrendingUp, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
+import { Rise } from "cube-motion/react";
+
 import { AddTransactionDialog } from "@/components/add-transaction-dialog";
 import { MobileAddTransactionSheet } from "@/components/mobile/add-transaction-sheet";
 import { Button } from "@/components/ui/button";
@@ -88,7 +90,7 @@ export default function OverviewPage() {
 
   return (
     <>
-      <div className="wl-mobile -mx-4 -mt-5 min-h-svh bg-wl-canvas px-6 pt-3 pb-6 lg:hidden">
+      <Rise as="div" targets="children" className="wl-mobile -mx-4 -mt-5 min-h-svh bg-wl-canvas px-6 pt-3 pb-6 lg:hidden">
         <div className="flex items-center justify-between">
           <p className="text-[20px] font-semibold leading-7 tracking-[-0.8px] text-wl-ink">Wealthline</p>
           <div className="flex size-10 items-center justify-center rounded-full bg-wl-surface text-[14px] font-semibold text-wl-ink">
@@ -159,7 +161,7 @@ export default function OverviewPage() {
             </div>
           </>
         )}
-      </div>
+      </Rise>
 
       {mobileSheetType && (
         <MobileAddTransactionSheet

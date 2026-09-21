@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { toast } from "sonner";
+import { Rise, Morph } from "cube-motion/react";
 
 import { MobileBottomSheet } from "./bottom-sheet";
 import { MobileFieldRow } from "./field-row";
@@ -118,10 +119,9 @@ export function MobileInvestmentContributionSheet({ open, onOpenChange }: Mobile
 
           <button type="button" onClick={() => setMoreOpen((v) => !v)} className="flex h-14 w-full items-center justify-between text-left">
             <span className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">More details</span>
-            <span className="text-[18px] text-wl-muted">{moreOpen ? "−" : "+"}</span>
+            <Morph active={moreOpen} off="+" on="−" className="text-[18px] text-wl-muted" />
           </button>
-          {moreOpen && (
-            <>
+          <Rise show={moreOpen} className="flex flex-col gap-3">
               <div className="flex h-16 flex-col justify-center gap-1 border-b border-wl-border">
                 <label className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">Notes</label>
                 <input
@@ -140,8 +140,7 @@ export function MobileInvestmentContributionSheet({ open, onOpenChange }: Mobile
                   className="bg-transparent text-[16px] font-semibold leading-6 tracking-[-0.32px] text-wl-ink placeholder:text-wl-muted focus:outline-none"
                 />
               </div>
-            </>
-          )}
+          </Rise>
 
           <button
             type="button"
@@ -149,7 +148,7 @@ export function MobileInvestmentContributionSheet({ open, onOpenChange }: Mobile
             onClick={handleSubmit}
             className="mt-1 flex h-[52px] items-center justify-center rounded-lg bg-wl-accent text-[15px] font-semibold tracking-[-0.6px] text-white disabled:opacity-60"
           >
-            {submitting ? "Saving…" : "Save contribution"}
+            <Morph active={submitting} off="Save contribution" on="Saving…" />
           </button>
         </div>
       )}

@@ -3,6 +3,7 @@
 import * as React from "react";
 import { CreditCard, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { Reveal } from "cube-motion/react";
 
 import { AddLiabilityDialog } from "@/components/add-liability-dialog";
 import { MobileAddLiabilitySheet } from "@/components/mobile/add-liability-sheet";
@@ -73,7 +74,7 @@ export default function DebtsPage() {
               <p className="text-[20px] font-semibold leading-7 tracking-[-0.8px] text-wl-ink">Your liabilities</p>
               <p className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-muted">{liabilities.length} debts</p>
             </div>
-            <div className="mt-3 flex flex-col gap-3">
+            <Reveal as="div" targets="children" className="mt-3 flex flex-col gap-3">
               {liabilities.map((l) => {
                 const paidOffPct = l.principal > 0 ? Math.min(100, ((l.principal - l.outstanding) / l.principal) * 100) : 0;
                 return (
@@ -96,7 +97,7 @@ export default function DebtsPage() {
                   </button>
                 );
               })}
-            </div>
+            </Reveal>
           </>
         )}
       </div>

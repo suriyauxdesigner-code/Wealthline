@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Morph } from "cube-motion/react";
 
 import { MobileBottomSheet } from "./bottom-sheet";
 import { MobileFieldRow } from "./field-row";
@@ -194,7 +195,7 @@ export function MobileAddInvestmentSheet({ open, onOpenChange, editInvestment }:
             onClick={handleSubmit}
             className="mt-1 flex h-[52px] items-center justify-center rounded-lg bg-wl-accent text-[15px] font-semibold tracking-[-0.6px] text-white disabled:opacity-60"
           >
-            {submitting ? "Saving…" : isEdit ? "Save changes" : "Add investment"}
+            <Morph active={submitting} off={isEdit ? "Save changes" : "Add investment"} on="Saving…" />
           </button>
           {isEdit && (
             <button type="button" onClick={handleDelete} className="flex h-11 items-center justify-center text-[14px] font-semibold text-wl-error">

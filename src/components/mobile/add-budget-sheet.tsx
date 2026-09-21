@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { toast } from "sonner";
+import { Morph } from "cube-motion/react";
 
 import { MobileBottomSheet } from "./bottom-sheet";
 import { MobileFieldRow } from "./field-row";
@@ -108,7 +109,7 @@ export function MobileAddBudgetSheet({ open, onOpenChange, editBudget }: MobileA
                 onClick={handleSubmit}
                 className="mt-1 flex h-[52px] items-center justify-center rounded-lg bg-wl-accent text-[15px] font-semibold tracking-[-0.6px] text-white disabled:opacity-60"
               >
-                {submitting ? "Saving…" : isEdit ? "Save changes" : "Save budget"}
+                <Morph active={submitting} off={isEdit ? "Save changes" : "Save budget"} on="Saving…" />
               </button>
               {isEdit && (
                 <button

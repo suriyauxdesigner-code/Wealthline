@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
+import { Reveal } from "cube-motion/react";
 
 import { moreNav } from "@/components/layout/nav-items";
 
@@ -13,7 +14,7 @@ export default function MorePage() {
     <>
       <div className="wl-mobile -mx-4 -mt-5 min-h-svh bg-wl-canvas px-6 pt-3 pb-6 lg:hidden">
         <h1 className="text-[28px] font-semibold leading-[36px] tracking-[-1.12px] text-wl-ink">More</h1>
-        <div className="mt-3 flex flex-col">
+        <Reveal as="div" targets="children" className="mt-3 flex flex-col">
           {moreNav.map((item, i) => (
             <Link
               key={item.href}
@@ -24,7 +25,7 @@ export default function MorePage() {
               <ChevronRight className="size-[18px] text-wl-muted" />
             </Link>
           ))}
-        </div>
+        </Reveal>
       </div>
       <div className="hidden p-8 text-sm text-muted-foreground lg:block">
         Everything here is already in the sidebar.{" "}

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, History, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { Reveal } from "cube-motion/react";
 
 import { AddInvestmentDialog } from "@/components/add-investment-dialog";
 import { LogInvestmentTransactionDialog } from "@/components/log-investment-transaction-dialog";
@@ -181,7 +182,7 @@ export default function InvestmentDetailPage({ params }: { params: Promise<{ id:
                   : "No transactions logged yet."}
               </p>
             ) : (
-              <div className="mt-3 flex flex-col gap-1">
+              <Reveal as="div" targets="children" className="mt-3 flex flex-col gap-1">
                 {transactions.map((tx) => (
                   <button
                     key={tx.id}
@@ -198,7 +199,7 @@ export default function InvestmentDetailPage({ params }: { params: Promise<{ id:
                     <p className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">{formatINR(tx.amount, { decimals: 2 })}</p>
                   </button>
                 ))}
-              </div>
+              </Reveal>
             )}
           </>
         ) : (

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { ChevronDown, Download, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Reveal } from "cube-motion/react";
 
 import { AddTransactionDialog } from "@/components/add-transaction-dialog";
 import { MobileAddTransactionSheet } from "@/components/mobile/add-transaction-sheet";
@@ -213,7 +214,8 @@ export default function TransactionsPage() {
         {mobileGroups.length === 0 ? (
           <p className="mt-6 text-center text-[14px] font-medium text-wl-muted">No transactions found.</p>
         ) : (
-          mobileGroups.map((group) => (
+          <Reveal as="div" targets="children">
+          {mobileGroups.map((group) => (
             <div key={group.label} className="mt-3">
               <p className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-muted">{group.label}</p>
               <div className="mt-1 divide-y divide-wl-border">
@@ -263,7 +265,8 @@ export default function TransactionsPage() {
                 })}
               </div>
             </div>
-          ))
+          ))}
+          </Reveal>
         )}
       </div>
 
