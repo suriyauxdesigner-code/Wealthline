@@ -21,6 +21,15 @@ export async function proxy(request: NextRequest) {
   const { response, user } = await updateSession(request);
   const { pathname } = request.nextUrl;
 
+  // API routes expect JSON, not an HTML redirect — an unauthenticated call
+  // would otherwise get a 307 to /login and, if the caller follows it and
+  // parses the response as JSON, a confusing parse failure instead of a
+  // clean empty/401 result. None of our routes need this optimistic check;
+  // each is responsible for its own auth if it ever needs any.
+  if (pathname.startsWith("/api/")) {
+    return response;
+  }
+
   if (matchesPath(pathname, ALWAYS_ALLOWED_PATHS)) {
     return response;
   }

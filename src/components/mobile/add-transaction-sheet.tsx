@@ -12,7 +12,7 @@ import { MobileDateField } from "./date-field";
 import { MobileDiscardSheet, useDiscardGuard, useIsDirty } from "./discard-guard";
 import { Switch } from "@/components/ui/switch";
 import { resolveIcon } from "@/components/finance/icon-map";
-import { MerchantIcon } from "@/components/finance/merchant-icon";
+import { MobileMerchantField } from "./merchant-autocomplete-field";
 import { formatINR } from "@/lib/calculations";
 import { useAppStore } from "@/lib/store";
 import type { Transaction, TransactionType } from "@/lib/types";
@@ -70,8 +70,10 @@ export function MobileAddTransactionSheet({
   const accounts = useAppStore((s) => s.accounts);
   const categories = useAppStore((s) => s.categories);
   const liabilities = useAppStore((s) => s.liabilities);
+  const transactions = useAppStore((s) => s.transactions);
   const addTransaction = useAppStore((s) => s.addTransaction);
   const updateTransaction = useAppStore((s) => s.updateTransaction);
+  const pastMerchantNames = React.useMemo(() => transactions.map((t) => t.merchant), [transactions]);
 
   const [pickerTarget, setPickerTarget] = React.useState<PickerTarget | null>(null);
 
@@ -216,24 +218,14 @@ export function MobileAddTransactionSheet({
           </div>
 
           <div className="flex flex-col">
-            <div className="flex h-16 items-center justify-between gap-3 border-b border-wl-border">
-              <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
-                <label className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">
-                  {type === "income" ? "Source" : "Merchant / description"}
-                </label>
-                <input
-                  value={merchant}
-                  onChange={(e) => setMerchant(e.target.value)}
-                  placeholder={type === "income" ? "e.g. Salary" : "e.g. Swiggy"}
-                  className="w-full bg-transparent text-[16px] font-semibold leading-6 tracking-[-0.32px] text-wl-ink placeholder:text-wl-muted focus:outline-none"
-                />
-              </div>
-              <MerchantIcon
-                merchant={merchant}
-                categoryIcon={categories.find((c) => c.id === categoryId)?.icon ?? relevantCategories[0]?.icon ?? "MoreHorizontal"}
-                className="size-6 shrink-0 text-wl-muted"
-              />
-            </div>
+            <MobileMerchantField
+              label={type === "income" ? "Source" : "Merchant / description"}
+              placeholder={type === "income" ? "e.g. Salary" : "e.g. Swiggy"}
+              value={merchant}
+              onChange={setMerchant}
+              pastMerchantNames={pastMerchantNames}
+              categoryIcon={categories.find((c) => c.id === categoryId)?.icon ?? relevantCategories[0]?.icon ?? "MoreHorizontal"}
+            />
 
             {type !== "transfer" && (
               <MobileFieldRow

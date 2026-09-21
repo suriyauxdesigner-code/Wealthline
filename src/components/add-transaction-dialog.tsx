@@ -17,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MerchantIcon } from "@/components/finance/merchant-icon";
+import { MerchantAutocomplete } from "@/components/finance/merchant-autocomplete";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -72,6 +73,8 @@ export function AddTransactionDialog({
   const categories = useAppStore((s) => s.categories);
   const liabilities = useAppStore((s) => s.liabilities);
   const investments = useAppStore((s) => s.investments);
+  const transactions = useAppStore((s) => s.transactions);
+  const pastMerchantNames = React.useMemo(() => transactions.map((t) => t.merchant), [transactions]);
   const addTransaction = useAppStore((s) => s.addTransaction);
   const updateTransaction = useAppStore((s) => s.updateTransaction);
   const linkInvestmentTransaction = useAppStore((s) => s.linkInvestmentTransaction);
@@ -403,13 +406,13 @@ export function AddTransactionDialog({
                     className="size-4 text-muted-foreground"
                   />
                 </div>
-                <Input
+                <MerchantAutocomplete
                   id="merchant"
                   placeholder={type === "income" ? "e.g. Salary" : "e.g. Swiggy"}
                   value={merchant}
-                  onChange={(e) => setMerchant(e.target.value)}
+                  onChange={setMerchant}
+                  pastMerchantNames={pastMerchantNames}
                   disabled={merchantLocked}
-                  className="flex-1"
                 />
               </div>
               {merchantLocked && (
