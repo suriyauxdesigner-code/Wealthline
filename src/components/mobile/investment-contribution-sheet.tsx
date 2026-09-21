@@ -6,8 +6,7 @@ import { toast } from "sonner";
 import { MobileBottomSheet } from "./bottom-sheet";
 import { MobileFieldRow } from "./field-row";
 import { MobileListPicker } from "./list-picker";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
+import { MobileDateField } from "./date-field";
 import { formatINR } from "@/lib/calculations";
 import { isUnitBasedAssetClass } from "@/lib/investment-selectors";
 import { useAppStore } from "@/lib/store";
@@ -35,7 +34,7 @@ export function MobileInvestmentContributionSheet({ open, onOpenChange }: Mobile
   const [description, setDescription] = React.useState("Monthly contribution");
   const [sourceAccountId, setSourceAccountId] = React.useState(accounts[0]?.id ?? "");
   const [investmentAccountId, setInvestmentAccountId] = React.useState(valueBasedHoldings[0]?.accountId ?? "");
-  const [date, setDate] = React.useState<Date>(new Date());
+  const [date, setDate] = React.useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = React.useState("");
   const [tags, setTags] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
@@ -65,7 +64,7 @@ export function MobileInvestmentContributionSheet({ open, onOpenChange }: Mobile
         accountId: sourceAccountId,
         toAccountId: investmentAccountId || undefined,
         investmentId,
-        date: date.toISOString().slice(0, 10),
+        date,
         notes: notes || undefined,
         tags: tags ? tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined,
       });
@@ -130,21 +129,7 @@ export function MobileInvestmentContributionSheet({ open, onOpenChange }: Mobile
           <MobileFieldRow label="Source account" value={accounts.find((a) => a.id === sourceAccountId)?.name ?? "Select"} onClick={() => setView("sourceAccount")} />
           <MobileFieldRow label="Investment account" value={accounts.find((a) => a.id === investmentAccountId)?.name ?? "Select"} onClick={() => setView("investmentAccount")} />
 
-          <Popover>
-            <PopoverTrigger asChild>
-              <button type="button" className="flex h-16 w-full items-center justify-between border-b border-wl-border text-left">
-                <div className="flex flex-col gap-1">
-                  <span className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">Date</span>
-                  <span className="text-[16px] font-semibold leading-6 tracking-[-0.32px] text-wl-ink">
-                    {date.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
-                  </span>
-                </div>
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} />
-            </PopoverContent>
-          </Popover>
+          <MobileDateField label="Date" value={date} onChange={setDate} />
 
           <button type="button" onClick={() => setMoreOpen((v) => !v)} className="flex h-14 w-full items-center justify-between text-left">
             <span className="text-[14px] font-semibold leading-5 tracking-[-0.56px] text-wl-ink">More details</span>

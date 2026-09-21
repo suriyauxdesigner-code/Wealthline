@@ -4,15 +4,12 @@ import * as React from "react";
 import { toast } from "sonner";
 
 import { MobileBottomSheet } from "./bottom-sheet";
-import { MobileKeypad } from "./keypad";
 import { MobileFieldRow } from "./field-row";
 import { MobileListPicker } from "./list-picker";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
+import { MobileDateField } from "./date-field";
 import { Switch } from "@/components/ui/switch";
 import { resolveIcon } from "@/components/finance/icon-map";
 import { useAppStore } from "@/lib/store";
-import { formatINR } from "@/lib/calculations";
 import type { Transaction, TransactionType } from "@/lib/types";
 
 type MobileTransactionType = Extract<TransactionType, "expense" | "income" | "transfer">;
@@ -27,12 +24,6 @@ const EDIT_SHEET_TITLE: Record<MobileTransactionType, string> = {
   expense: "Edit expense",
   income: "Edit income",
   transfer: "Edit transfer",
-};
-
-const AMOUNT_TITLE: Record<MobileTransactionType, string> = {
-  expense: "Expense amount",
-  income: "Income amount",
-  transfer: "Transfer amount",
 };
 
 const SAVE_LABEL: Record<MobileTransactionType, string> = {
@@ -54,12 +45,6 @@ const FROM_ACCOUNT_LABEL: Record<MobileTransactionType, string> = {
 };
 
 type PickerTarget = "category" | "fromAccount" | "toAccount" | "debt";
-
-function formatDateLabel(d: Date): string {
-  const today = new Date();
-  const rest = d.toLocaleDateString("en-IN", { day: "numeric", month: "long" });
-  return d.toDateString() === today.toDateString() ? `Today, ${rest}` : rest;
-}
 
 interface MobileAddTransactionSheetProps {
   open: boolean;
@@ -83,7 +68,7 @@ export function MobileAddTransactionSheet({
   const addTransaction = useAppStore((s) => s.addTransaction);
   const updateTransaction = useAppStore((s) => s.updateTransaction);
 
-  const [view, setView] = React.useState<"form" | "amount" | "picker">("form");
+  const [view, setView] = React.useState<"form" | "picker">("form");
   const [pickerTarget, setPickerTarget] = React.useState<PickerTarget | null>(null);
 
   const [amount, setAmount] = React.useState(editTransaction ? String(editTransaction.amount) : "");
@@ -92,7 +77,7 @@ export function MobileAddTransactionSheet({
   const [accountId, setAccountId] = React.useState(editTransaction?.accountId ?? accounts[0]?.id ?? "");
   const [toAccountId, setToAccountId] = React.useState(editTransaction?.toAccountId ?? "");
   const [liabilityId, setLiabilityId] = React.useState(editTransaction?.liabilityId ?? "");
-  const [date, setDate] = React.useState<Date>(editTransaction ? new Date(editTransaction.date) : new Date());
+  const [date, setDate] = React.useState(editTransaction?.date ?? new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = React.useState(editTransaction?.notes ?? "");
   const [tags, setTags] = React.useState(editTransaction?.tags?.join(", ") ?? "");
   const [recurring, setRecurring] = React.useState(false);
@@ -105,15 +90,6 @@ export function MobileAddTransactionSheet({
   function openPicker(target: PickerTarget) {
     setPickerTarget(target);
     setView("picker");
-  }
-
-  function handleKey(key: string) {
-    if (key === "backspace") {
-      setAmount((a) => a.slice(0, -1));
-      return;
-    }
-    if (key === "." && amount.includes(".")) return;
-    setAmount((a) => a + key);
   }
 
   async function handleSubmit() {
@@ -130,7 +106,7 @@ export function MobileAddTransactionSheet({
       accountId,
       toAccountId: type === "transfer" ? toAccountId || undefined : undefined,
       liabilityId: showDebtField ? liabilityId || undefined : undefined,
-      date: date.toISOString().slice(0, 10),
+      date,
       notes: notes || undefined,
       tags: tags
         ? tags
@@ -207,7 +183,7 @@ export function MobileAddTransactionSheet({
     return null;
   })();
 
-  const title = view === "amount" ? AMOUNT_TITLE[type] : view === "picker" ? pickerConfig?.title ?? "" : isEdit ? EDIT_SHEET_TITLE[type] : SHEET_TITLE[type];
+  const title = view === "picker" ? pickerConfig?.title ?? "" : isEdit ? EDIT_SHEET_TITLE[type] : SHEET_TITLE[type];
 
   return (
     <MobileBottomSheet
@@ -215,31 +191,25 @@ export function MobileAddTransactionSheet({
       onOpenChange={onOpenChange}
       title={title}
     >
-      {view === "amount" && (
-        <div className="flex flex-col gap-3">
-          <p className="text-[64px] font-semibold leading-[72px] tracking-[-3.84px] text-wl-ink">{formatINR(Number(amount) || 0)}</p>
-          <p className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">INR · Indian rupee</p>
-          <MobileKeypad onKeyPress={handleKey} />
-          <button
-            type="button"
-            onClick={() => setView("form")}
-            className="flex h-[52px] items-center justify-center rounded-lg bg-wl-accent text-[15px] font-semibold tracking-[-0.6px] text-white"
-          >
-            Done
-          </button>
-        </div>
-      )}
-
       {view === "picker" && pickerConfig && (
         <MobileListPicker options={pickerConfig.options} selectedId={pickerConfig.selectedId} onSelect={pickerConfig.onSelect} />
       )}
 
       {view === "form" && (
         <div className="flex flex-col gap-3">
-          <button type="button" onClick={() => setView("amount")} className="flex flex-col items-start gap-1 text-left">
-            <span className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">Amount · INR</span>
-            <span className="text-[48px] font-semibold leading-[56px] tracking-[-3.84px] text-wl-ink">{formatINR(Number(amount) || 0)}</span>
-          </button>
+          <div className="flex flex-col items-start gap-1">
+            <label htmlFor="mobile-tx-amount" className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">
+              Amount · INR
+            </label>
+            <input
+              id="mobile-tx-amount"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
+              placeholder="0"
+              inputMode="decimal"
+              className="w-full bg-transparent text-[48px] font-semibold leading-[56px] tracking-[-3.84px] text-wl-ink placeholder:text-wl-disabled focus:outline-none"
+            />
+          </div>
 
           <div className="flex flex-col">
             <div className="flex h-16 flex-col justify-center gap-1 border-b border-wl-border">
@@ -276,19 +246,7 @@ export function MobileAddTransactionSheet({
               />
             )}
 
-            <Popover>
-              <PopoverTrigger asChild>
-                <button type="button" className="flex h-16 w-full items-center justify-between border-b border-wl-border text-left last:border-b-0">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">Date</span>
-                    <span className="text-[16px] font-semibold leading-6 tracking-[-0.32px] text-wl-ink">{formatDateLabel(date)}</span>
-                  </div>
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} />
-              </PopoverContent>
-            </Popover>
+            <MobileDateField label="Date" value={date} onChange={setDate} />
 
             <button
               type="button"

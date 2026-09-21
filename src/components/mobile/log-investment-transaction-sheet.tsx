@@ -4,8 +4,7 @@ import * as React from "react";
 import { toast } from "sonner";
 
 import { MobileBottomSheet } from "./bottom-sheet";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
+import { MobileDateField } from "./date-field";
 import { formatINR } from "@/lib/calculations";
 import { useAppStore } from "@/lib/store";
 import type { Investment, InvestmentTransaction, InvestmentTransactionType } from "@/lib/types";
@@ -48,7 +47,7 @@ export function MobileLogInvestmentTransactionSheet({
           : ""
   );
   const [amount, setAmount] = React.useState(editEntry?.type === "dividend" ? String(editEntry.price) : "");
-  const [date, setDate] = React.useState<Date>(editEntry ? new Date(editEntry.date) : new Date());
+  const [date, setDate] = React.useState(editEntry?.date ?? new Date().toISOString().slice(0, 10));
   const [submitting, setSubmitting] = React.useState(false);
 
   const isDividend = type === "dividend";
@@ -58,8 +57,8 @@ export function MobileLogInvestmentTransactionSheet({
 
   async function handleSubmit() {
     const input = isDividend
-      ? { type, quantity: 1, price: Number(amount), date: date.toISOString().slice(0, 10) }
-      : { type, quantity: numericQuantity, price: numericPrice, date: date.toISOString().slice(0, 10) };
+      ? { type, quantity: 1, price: Number(amount), date }
+      : { type, quantity: numericQuantity, price: numericPrice, date };
     if (!input.quantity || !input.price) return;
 
     setSubmitting(true);
@@ -144,21 +143,7 @@ export function MobileLogInvestmentTransactionSheet({
           </>
         )}
 
-        <Popover>
-          <PopoverTrigger asChild>
-            <button type="button" className="flex h-16 w-full items-center justify-between border-b border-wl-border text-left">
-              <div className="flex flex-col gap-1">
-                <span className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">Date</span>
-                <span className="text-[16px] font-semibold leading-6 tracking-[-0.32px] text-wl-ink">
-                  {date.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
-                </span>
-              </div>
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} />
-          </PopoverContent>
-        </Popover>
+        <MobileDateField label="Date" value={date} onChange={setDate} />
 
         {!isDividend && value > 0 && (
           <p className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">
