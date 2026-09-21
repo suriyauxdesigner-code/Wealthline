@@ -7,6 +7,32 @@ import { getCachedBrand } from "@/lib/merchant-brand-cache";
 import { resolveMerchantIcon } from "@/lib/merchant-icons";
 import { resolveIcon } from "./icon-map";
 
+interface BrandLogoProps {
+  domain: string | null;
+  fallback: React.ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
+}
+
+// Renders the real Brandfetch logo for `domain` (not the low-res lettermark
+// placeholder the Search API's own `icon` field returns — that one's only
+// meant for a quick "is this the brand I meant" glance, not actual display).
+// Falls through to `fallback` when there's no domain, or the image 404s/
+// fails to load (offline, Brandfetch not configured, or no logo on file).
+export function BrandLogo({ domain, fallback, className, style }: BrandLogoProps) {
+  // Tracks *which* url last failed, rather than a plain boolean, so a
+  // changed `domain` prop automatically gets a fresh attempt without an
+  // effect to reset the flag — comparing against the current url is enough.
+  const [failedUrl, setFailedUrl] = React.useState<string | null>(null);
+  const url = domain ? getBrandLogoUrl(domain) : null;
+
+  if (url && url !== failedUrl) {
+    // eslint-disable-next-line @next/next/no-img-element -- external, arbitrary-domain brand logos; next/image's domain allowlist doesn't fit a growing merchant list.
+    return <img src={url} alt="" className={className} style={style} onError={() => setFailedUrl(url)} />;
+  }
+  return fallback;
+}
+
 interface MerchantIconProps {
   merchant: string;
   categoryIcon: string;
@@ -20,33 +46,24 @@ interface MerchantIconProps {
 // they picked it from the merchant autocomplete), then a Simple Icons brand
 // match, then the existing category icon as fallback — used everywhere a
 // transaction's merchant is shown, so every call site stays in sync as the
-// merchant database grows. The Brandfetch lookup is deferred to a mount
-// effect (it reads localStorage) so server and first-paint client markup
-// match; a failed image load (e.g. offline, or Brandfetch not configured)
-// falls through the same chain via onError.
+// merchant database grows. The cache lookup is deferred to a mount effect
+// (it reads localStorage) so server and first-paint client markup match.
 export function MerchantIcon({ merchant, categoryIcon, className, style, strokeWidth }: MerchantIconProps) {
-  const [logoUrl, setLogoUrl] = React.useState<string | null>(null);
-  const [imgFailed, setImgFailed] = React.useState(false);
+  const [cachedDomain, setCachedDomain] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    const cached = getCachedBrand(merchant);
-    setLogoUrl(cached ? getBrandLogoUrl(cached.domain) : null);
-    setImgFailed(false);
+    setCachedDomain(getCachedBrand(merchant)?.domain ?? null);
   }, [merchant]);
 
-  if (logoUrl && !imgFailed) {
-    // eslint-disable-next-line @next/next/no-img-element -- external, arbitrary-domain brand logos; next/image's domain allowlist doesn't fit a growing merchant list.
-    return <img src={logoUrl} alt="" className={className} style={style} onError={() => setImgFailed(true)} />;
-  }
-
   const brand = resolveMerchantIcon(merchant);
-  if (brand) {
-    return (
-      <svg role="img" viewBox="0 0 24 24" className={className} style={{ ...style, color: `#${brand.hex}` }} fill="currentColor">
-        <title>{brand.title}</title>
-        <path d={brand.path} />
-      </svg>
-    );
-  }
-  return React.createElement(resolveIcon(categoryIcon), { className, style, strokeWidth });
+  const fallback = brand ? (
+    <svg role="img" viewBox="0 0 24 24" className={className} style={{ ...style, color: `#${brand.hex}` }} fill="currentColor">
+      <title>{brand.title}</title>
+      <path d={brand.path} />
+    </svg>
+  ) : (
+    React.createElement(resolveIcon(categoryIcon), { className, style, strokeWidth })
+  );
+
+  return <BrandLogo domain={cachedDomain} fallback={fallback} className={className} style={style} />;
 }

@@ -17,10 +17,17 @@ export function brandfetchEnabled(): boolean {
   return !!CLIENT_ID;
 }
 
-/** Square brand mark for `domain`, sized for inline use (e.g. a 24–40px icon slot). Null if unconfigured. */
+/**
+ * Square brand mark for `domain`, sized for inline use (e.g. a 24–40px icon
+ * slot). Null if unconfigured.
+ *
+ * No leading "domain/" segment — verified live against the CDN that the
+ * documented `.../domain/{domain}/...` form 404s, while the bare
+ * `{domain}/w/{n}/h/{n}/fallback/404` form (used here) reliably resolves.
+ */
 export function getBrandLogoUrl(domain: string, size = 64): string | null {
   if (!CLIENT_ID) return null;
-  return `https://cdn.brandfetch.io/domain/${encodeURIComponent(domain)}/w/${size}/h/${size}/type/icon/fallback/404?c=${CLIENT_ID}`;
+  return `https://cdn.brandfetch.io/${encodeURIComponent(domain)}/w/${size}/h/${size}/fallback/404?c=${CLIENT_ID}`;
 }
 
 /** Debounce this at the call site — each call hits our own /api/brandfetch/search proxy. */

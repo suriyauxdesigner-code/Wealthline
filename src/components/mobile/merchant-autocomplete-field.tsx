@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { MerchantIcon } from "@/components/finance/merchant-icon";
+import { MerchantIcon, BrandLogo } from "@/components/finance/merchant-icon";
 import { setCachedBrand } from "@/lib/merchant-brand-cache";
 import { resolveMerchantIcon, merchantInitials } from "@/lib/merchant-icons";
 import { useMerchantSuggestions, type MerchantSuggestion } from "@/hooks/use-merchant-suggestions";
@@ -18,23 +18,17 @@ interface MobileMerchantFieldProps {
 }
 
 function SuggestionIcon({ suggestion }: { suggestion: MerchantSuggestion }) {
-  if (suggestion.icon) {
-    // eslint-disable-next-line @next/next/no-img-element -- arbitrary third-party brand icon URL from a live search result.
-    return <img src={suggestion.icon} alt="" className="size-6 shrink-0 rounded-sm object-contain" />;
-  }
   const brand = resolveMerchantIcon(suggestion.name);
-  if (brand) {
-    return (
-      <svg role="img" viewBox="0 0 24 24" className="size-6 shrink-0" style={{ color: `#${brand.hex}` }} fill="currentColor">
-        <path d={brand.path} />
-      </svg>
-    );
-  }
-  return (
+  const fallback = brand ? (
+    <svg role="img" viewBox="0 0 24 24" className="size-6 shrink-0" style={{ color: `#${brand.hex}` }} fill="currentColor">
+      <path d={brand.path} />
+    </svg>
+  ) : (
     <span className="flex size-6 shrink-0 items-center justify-center rounded-sm bg-wl-disabled text-[10px] font-semibold text-wl-muted">
       {merchantInitials(suggestion.name)}
     </span>
   );
+  return <BrandLogo domain={suggestion.domain} fallback={fallback} className="size-6 shrink-0 rounded-sm object-contain" />;
 }
 
 // wl-mobile version of the merchant field: same field-row chrome as every

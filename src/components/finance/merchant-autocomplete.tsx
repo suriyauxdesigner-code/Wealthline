@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { setCachedBrand } from "@/lib/merchant-brand-cache";
 import { resolveMerchantIcon, merchantInitials } from "@/lib/merchant-icons";
+import { BrandLogo } from "./merchant-icon";
 import { useMerchantSuggestions, type MerchantSuggestion } from "@/hooks/use-merchant-suggestions";
 
 interface MerchantAutocompleteProps {
@@ -20,23 +21,17 @@ interface MerchantAutocompleteProps {
 }
 
 function SuggestionIcon({ suggestion }: { suggestion: MerchantSuggestion }) {
-  if (suggestion.icon) {
-    // eslint-disable-next-line @next/next/no-img-element -- arbitrary third-party brand icon URL from a live search result.
-    return <img src={suggestion.icon} alt="" className="size-5 shrink-0 rounded-sm object-contain" />;
-  }
   const brand = resolveMerchantIcon(suggestion.name);
-  if (brand) {
-    return (
-      <svg role="img" viewBox="0 0 24 24" className="size-5 shrink-0" style={{ color: `#${brand.hex}` }} fill="currentColor">
-        <path d={brand.path} />
-      </svg>
-    );
-  }
-  return (
+  const fallback = brand ? (
+    <svg role="img" viewBox="0 0 24 24" className="size-5 shrink-0" style={{ color: `#${brand.hex}` }} fill="currentColor">
+      <path d={brand.path} />
+    </svg>
+  ) : (
     <span className="flex size-5 shrink-0 items-center justify-center rounded-sm bg-muted text-[10px] font-medium text-muted-foreground">
       {merchantInitials(suggestion.name)}
     </span>
   );
+  return <BrandLogo domain={suggestion.domain} fallback={fallback} className="size-5 shrink-0 rounded-sm object-contain" />;
 }
 
 // Desktop free-text merchant field with a suggestion dropdown: the user's
