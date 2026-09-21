@@ -21,12 +21,15 @@ export function useReceiptScan() {
     try {
       const text = await extractReceiptText(file, setProgress);
       const parsed = parseReceiptText(text);
-      const found = [parsed.merchant, parsed.amount ? `₹${parsed.amount.toLocaleString("en-IN")}` : null].filter(Boolean);
+      const headline = [parsed.merchant, parsed.amount ? `₹${parsed.amount.toLocaleString("en-IN")}` : null].filter(Boolean);
+      const anyField = headline.length > 0 || parsed.date || parsed.paymentMethod || parsed.referenceId;
 
-      if (found.length === 0) {
+      if (!anyField) {
         toast("Couldn't read much from that screenshot", { description: "Fill in the details below." });
+      } else if (headline.length > 0) {
+        toast.success("Screenshot scanned", { description: `Detected ${headline.join(" · ")} — please review before saving.` });
       } else {
-        toast.success("Screenshot scanned", { description: `Detected ${found.join(" · ")} — please review before saving.` });
+        toast.success("Screenshot scanned", { description: "Found some details, but not the merchant or amount — please review before saving." });
       }
       return parsed;
     } catch {

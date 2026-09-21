@@ -20,6 +20,10 @@ next-env.d.ts
 # typescript
 *.tsbuildinfo
 
+# tesseract.js language data — cached to the working directory when its OCR
+# pipeline runs under Node (e.g. local testing), not needed in the repo
+*.traineddata
+
 # logs
 npm-debug.log*
 yarn-debug.log*
