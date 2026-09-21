@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Paperclip, Plus } from "lucide-react";
+import { Paperclip, Plus, ScanLine } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MerchantIcon } from "@/components/finance/merchant-icon";
 import { MerchantAutocomplete } from "@/components/finance/merchant-autocomplete";
+import { useReceiptScan } from "@/hooks/use-receipt-scan";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -134,6 +135,27 @@ export function AddTransactionDialog({
   const toAccountLocked = isUnitBasedSelected && investmentDirection === "buy";
 
   const relevantCategories = categories.filter((c) => c.kind === TYPE_TO_CATEGORY_KIND[type]);
+
+  const receiptInputRef = React.useRef<HTMLInputElement>(null);
+  const { scanning, scan } = useReceiptScan();
+  async function handleReceiptFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    const parsed = await scan(file);
+    if (!parsed) return;
+
+    if (parsed.merchant) setMerchant(parsed.merchant);
+    if (parsed.amount) setAmount(String(parsed.amount));
+    if (parsed.date) setDate(new Date(`${parsed.date}T00:00:00`));
+    if (parsed.suggestedCategoryName) {
+      const match = relevantCategories.find((c) => c.name.toLowerCase() === parsed.suggestedCategoryName!.toLowerCase());
+      if (match) setCategoryId(match.id);
+    }
+    const extra = [parsed.paymentMethod, parsed.referenceId ? `Ref: ${parsed.referenceId}` : null].filter(Boolean).join(" · ");
+    if (extra) setNotes((prev) => (prev ? `${prev}\n${extra}` : extra));
+  }
   // The destination select normally excludes the source account (you can't
   // transfer to the same account) — but when it's locked to the holding's
   // own account, that account must stay in the list or Radix has nothing to
@@ -307,6 +329,30 @@ export function AddTransactionDialog({
               ))}
             </TabsList>
           </Tabs>
+
+          {type === "expense" && !isEdit && (
+            <div>
+              <input
+                ref={receiptInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleReceiptFile}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={scanning}
+                onClick={() => receiptInputRef.current?.click()}
+              >
+                <ScanLine /> {scanning ? "Scanning screenshot…" : "Upload payment screenshot"}
+              </Button>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Reads the merchant, amount, date and category where possible — review everything below before saving.
+              </p>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             {type === "investment" && (

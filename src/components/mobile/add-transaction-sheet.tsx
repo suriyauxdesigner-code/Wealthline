@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { toast } from "sonner";
+import { ScanLine } from "lucide-react";
 
 import { Rise, Morph } from "cube-motion/react";
 
@@ -15,6 +16,7 @@ import { resolveIcon } from "@/components/finance/icon-map";
 import { MobileMerchantField } from "./merchant-autocomplete-field";
 import { formatINR } from "@/lib/calculations";
 import { useAppStore } from "@/lib/store";
+import { useReceiptScan } from "@/hooks/use-receipt-scan";
 import type { Transaction, TransactionType } from "@/lib/types";
 
 type MobileTransactionType = Extract<TransactionType, "expense" | "income" | "transfer">;
@@ -92,6 +94,27 @@ export function MobileAddTransactionSheet({
 
   const relevantCategories = categories.filter((c) => c.kind === TYPE_TO_CATEGORY_KIND[type]);
   const showDebtField = type === "expense" || type === "transfer";
+
+  const receiptInputRef = React.useRef<HTMLInputElement>(null);
+  const { scanning, scan } = useReceiptScan();
+  async function handleReceiptFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    const parsed = await scan(file);
+    if (!parsed) return;
+
+    if (parsed.merchant) setMerchant(parsed.merchant);
+    if (parsed.amount) setAmount(String(parsed.amount));
+    if (parsed.date) setDate(parsed.date);
+    if (parsed.suggestedCategoryName) {
+      const match = relevantCategories.find((c) => c.name.toLowerCase() === parsed.suggestedCategoryName!.toLowerCase());
+      if (match) setCategoryId(match.id);
+    }
+    const extra = [parsed.paymentMethod, parsed.referenceId ? `Ref: ${parsed.referenceId}` : null].filter(Boolean).join(" · ");
+    if (extra) setNotes((prev) => (prev ? `${prev}\n${extra}` : extra));
+  }
 
   const isDirty = useIsDirty({ amount, merchant, categoryId, accountId, toAccountId, liabilityId, date, notes, tags, recurring });
   const { confirmOpen, requestClose, keepEditing, discardChanges } = useDiscardGuard(isDirty, () => onOpenChange(false));
@@ -203,6 +226,30 @@ export function MobileAddTransactionSheet({
       title={title}
     >
         <div className="flex flex-col gap-3">
+          {type === "expense" && !isEdit && (
+            <div className="flex flex-col gap-1">
+              <input
+                ref={receiptInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleReceiptFile}
+                className="hidden"
+              />
+              <button
+                type="button"
+                disabled={scanning}
+                onClick={() => receiptInputRef.current?.click()}
+                className="flex h-11 items-center justify-center gap-2 rounded-lg border border-wl-border text-[14px] font-semibold text-wl-ink disabled:opacity-60"
+              >
+                <ScanLine className="size-[18px]" strokeWidth={1.75} />
+                {scanning ? "Scanning screenshot…" : "Upload payment screenshot"}
+              </button>
+              <p className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">
+                Reads what it can and fills in the fields below — review before saving.
+              </p>
+            </div>
+          )}
+
           <div className="flex flex-col items-start gap-1">
             <label htmlFor="mobile-tx-amount" className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">
               Amount · INR
