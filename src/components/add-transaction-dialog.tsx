@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MerchantIcon } from "@/components/finance/merchant-icon";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -394,13 +395,23 @@ export function AddTransactionDialog({
 
             <div className="col-span-2 space-y-1.5">
               <Label htmlFor="merchant">{type === "income" ? "Source" : "Merchant / description"}</Label>
-              <Input
-                id="merchant"
-                placeholder={type === "income" ? "e.g. Salary" : "e.g. Swiggy"}
-                value={merchant}
-                onChange={(e) => setMerchant(e.target.value)}
-                disabled={merchantLocked}
-              />
+              <div className="flex items-center gap-2">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted">
+                  <MerchantIcon
+                    merchant={merchant}
+                    categoryIcon={categories.find((c) => c.id === categoryId)?.icon ?? relevantCategories[0]?.icon ?? "MoreHorizontal"}
+                    className="size-4 text-muted-foreground"
+                  />
+                </div>
+                <Input
+                  id="merchant"
+                  placeholder={type === "income" ? "e.g. Salary" : "e.g. Swiggy"}
+                  value={merchant}
+                  onChange={(e) => setMerchant(e.target.value)}
+                  disabled={merchantLocked}
+                  className="flex-1"
+                />
+              </div>
               {merchantLocked && (
                 <p className="text-xs text-muted-foreground">Set from the selected investment — pick &quot;General&quot; to edit.</p>
               )}

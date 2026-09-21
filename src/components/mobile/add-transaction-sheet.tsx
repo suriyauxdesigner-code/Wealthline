@@ -12,6 +12,7 @@ import { MobileDateField } from "./date-field";
 import { MobileDiscardSheet, useDiscardGuard, useIsDirty } from "./discard-guard";
 import { Switch } from "@/components/ui/switch";
 import { resolveIcon } from "@/components/finance/icon-map";
+import { MerchantIcon } from "@/components/finance/merchant-icon";
 import { formatINR } from "@/lib/calculations";
 import { useAppStore } from "@/lib/store";
 import type { Transaction, TransactionType } from "@/lib/types";
@@ -215,15 +216,22 @@ export function MobileAddTransactionSheet({
           </div>
 
           <div className="flex flex-col">
-            <div className="flex h-16 flex-col justify-center gap-1 border-b border-wl-border">
-              <label className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">
-                {type === "income" ? "Source" : "Merchant / description"}
-              </label>
-              <input
-                value={merchant}
-                onChange={(e) => setMerchant(e.target.value)}
-                placeholder={type === "income" ? "e.g. Salary" : "e.g. Swiggy"}
-                className="bg-transparent text-[16px] font-semibold leading-6 tracking-[-0.32px] text-wl-ink placeholder:text-wl-muted focus:outline-none"
+            <div className="flex h-16 items-center justify-between gap-3 border-b border-wl-border">
+              <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
+                <label className="text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">
+                  {type === "income" ? "Source" : "Merchant / description"}
+                </label>
+                <input
+                  value={merchant}
+                  onChange={(e) => setMerchant(e.target.value)}
+                  placeholder={type === "income" ? "e.g. Salary" : "e.g. Swiggy"}
+                  className="w-full bg-transparent text-[16px] font-semibold leading-6 tracking-[-0.32px] text-wl-ink placeholder:text-wl-muted focus:outline-none"
+                />
+              </div>
+              <MerchantIcon
+                merchant={merchant}
+                categoryIcon={categories.find((c) => c.id === categoryId)?.icon ?? relevantCategories[0]?.icon ?? "MoreHorizontal"}
+                className="size-6 shrink-0 text-wl-muted"
               />
             </div>
 

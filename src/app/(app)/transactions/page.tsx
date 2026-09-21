@@ -30,6 +30,7 @@ import {
 import { EmptyState } from "@/components/finance/empty-state";
 import { FilterBar } from "@/components/finance/filter-bar";
 import { resolveIcon } from "@/components/finance/icon-map";
+import { MerchantIcon } from "@/components/finance/merchant-icon";
 import { useAppStore } from "@/lib/store";
 import { formatINR } from "@/lib/calculations";
 import { isInRange, resolvePeriod } from "@/lib/selectors";
@@ -226,7 +227,7 @@ export default function TransactionsPage() {
                   const sign = isPositive ? "+" : t.type === "expense" ? "−" : "";
                   return (
                     <div key={t.id} className="flex h-[72px] items-center gap-3">
-                      {React.createElement(resolveIcon(category.icon), { className: "size-6 shrink-0 text-wl-ink", strokeWidth: 1.75 })}
+                      <MerchantIcon merchant={t.merchant} categoryIcon={category.icon} className="size-6 shrink-0 text-wl-ink" strokeWidth={1.75} />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[16px] font-semibold leading-6 tracking-[-0.32px] text-wl-ink">{t.merchant}</p>
                         <p className="truncate text-[12px] font-medium leading-4 tracking-[-0.48px] text-wl-muted">
@@ -385,14 +386,13 @@ export default function TransactionsPage() {
               {pageItems.map((t) => {
                 const category = getCategory(t.categoryId);
                 const account = getAccount(t.accountId);
-                const Icon = resolveIcon(category.icon);
                 const isPositive = t.type === "income";
                 const sign = isPositive ? "+" : t.type === "expense" ? "-" : "";
                 return (
                   <div key={t.id} className="flex items-center gap-3 px-4 py-3">
                     <Checkbox checked={selected.has(t.id)} onCheckedChange={() => toggleSelect(t.id)} />
                     <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
-                      <Icon className="size-3.5 text-muted-foreground" />
+                      <MerchantIcon merchant={t.merchant} categoryIcon={category.icon} className="size-3.5 text-muted-foreground" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{t.merchant}</p>
